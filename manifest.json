@@ -10,11 +10,11 @@
     "144": "assets/144.png"
   },
   "action": {
-    "default_popup": "index.html",
+    "default_popup": "popup.html",
     "default_title": "Summarise this email"
   },
   "background": {
-    "service_worker": "scripts/contextMenuServiceWorker.js"
+    "service_worker": "scripts/background.js"
   },
   "permissions": ["contextMenus", "tabs", "storage", "scripting"],
   "host_permissions": ["https://*/*"],
