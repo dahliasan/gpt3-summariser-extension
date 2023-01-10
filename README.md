@@ -1,10 +1,10 @@
-# AI powered summariser
+# AI powered summariser chrome extension
 
 ### Welcome 👋
 
 This is my project for [buildspace's nights and weekend's season 2](https://buildspace.so/nights-and-weekends) cohort.
 
-This is a chrome extension that automatically generate summaries of long or complex emails, allowing you to quickly understand the main points without having to read the entire message.
+This is a chrome extension that automatically generate summaries of text, allowing you to quickly understand the main points without having to read the entire message.
 
 It is powered by OpenAI's GPT3.
 
