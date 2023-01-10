@@ -1,27 +1,54 @@
+// Create message listener
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.text) {
-    console.log('Received email content: ' + request.text)
+    console.log('Received input: ' + request.text)
     generateCompletionAction(request.text, request.info, request.tab)
   }
 })
 
-// Create the context menu (right-click on page) which execute generation
+// On extension installation
 chrome.runtime.onInstalled.addListener(() => {
+  // Create the context menu
   chrome.contextMenus.create({
-    id: 'gpt-email-summariser',
-    title: 'Generate email summary',
+    id: 'gpt-summarise',
+    title: 'Generate summary',
     contexts: ['all'],
-    documentUrlPatterns: ['*://mail.google.com/*'],
+    // documentUrlPatterns: ['*://mail.google.com/*'],
   })
+
+  // Create new tab to landing page
+  //  chrome.tabs.create({ url: '' })
 })
 
-// Add listener
+// Add listener to commands (keyboard shortcuts)
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === 'open_chatgpt') {
+    console.log('open_chatgpt command used')
+    chrome.tabs.create({ url: 'https://chat.openai.com/chat' })
+  }
+
+  if (command === 'generate_summary') {
+    console.log('generate_summary command used')
+    // Send a message to the content script of the active tab
+    chrome.tabs.sendMessage(
+      tab.id,
+      { message: 'get_selection' },
+      (response) => {
+        // Do something with the selected text
+        console.log('selected text received: ', response.text)
+        generateCompletionAction(response.text, info, tab)
+      }
+    )
+  }
+})
+
+// Add listener to context menu
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.selectionText) {
     generateCompletionAction(info.selectionText, info, tab)
   } else {
-    chrome.tabs.sendMessage(tab.id, { message: 'get email' }, (response) => {
-      console.log('response received from get email request!', response)
+    chrome.tabs.sendMessage(tab.id, { message: 'get_email' }, (response) => {
+      console.log('Entire email content received: ', response)
       generateCompletionAction(response.text, info, tab)
     })
   }

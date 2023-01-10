@@ -1,7 +1,7 @@
 {
-  "name": "AI Powered Email Summariser",
-  "description": "Summarise your emails!",
-  "version": "1.0",
+  "name": "AI Powered Summariser",
+  "description": "TL;DR everything!",
+  "version": "1.0.1",
   "manifest_version": 3,
   "icons": {
     "48": "assets/48.png",
@@ -10,11 +10,11 @@
     "144": "assets/144.png"
   },
   "action": {
-    "default_popup": "index.html",
-    "default_title": "Summarise this email"
+    "default_popup": "popup.html",
+    "default_title": "Summarise this!"
   },
   "background": {
-    "service_worker": "scripts/contextMenuServiceWorker.js"
+    "service_worker": "scripts/background.js"
   },
   "permissions": ["contextMenus", "tabs", "storage", "scripting"],
   "host_permissions": ["https://*/*"],
@@ -24,5 +24,15 @@
       "js": ["scripts/content.js"],
       "css": ["content.css"]
     }
-  ]
+  ],
+  "commands": {
+    "open_chatgpt": {
+      "description": "Open ChatGPT in new tab",
+      "suggested_key": "Ctrl+Shift+Y"
+    },
+    "generate_summary": {
+      "description": "Generate summary",
+      "suggested_key": "Ctrl+Shift+E"
+    }
+  }
 }
