@@ -7,14 +7,9 @@ const createPopupWindow = () => {
 
   // Add top bar wrapper for buttons
   let topBar = document.createElement('div')
+  topBar.setAttribute('id', 'window1header')
   topBar.className = 'top-bar'
   popup.appendChild(topBar)
-
-  // Add a handle button to the pop-up
-  let handleButton = document.createElement('div')
-  handleButton.setAttribute('id', 'window1header')
-  handleButton.className = 'handle-btn'
-  topBar.appendChild(handleButton)
 
   // Add a close button to the pop-up
   let closeButton = document.createElement('div')
@@ -39,9 +34,6 @@ const createPopupWindow = () => {
 
 const insert = async (content, tabId) => {
   // Find the section on the page to insert our summary div
-  const element = document.querySelector('div.nH.V8djrc.byY')
-
-  if (!element) return
 
   let summaryElement = document.getElementById('summary-content')
 
@@ -75,12 +67,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   // If message requests the entire email content
-  if (request.message === 'get email') {
+  if (request.message === 'get_email') {
     const emailText = document.querySelector('.gs .ii.gt')?.innerText || ''
 
-    console.log('get email request received, sending:', emailText)
+    console.log('Requested to get entire email, sending:', emailText)
 
     sendResponse({ text: emailText })
+  }
+
+  if (request.message === 'get_selection') {
+    // Get the selected text
+    const selectedText = window.getSelection().toString()
+    // Send the selected text as a response
+    sendResponse({ text: selectedText })
   }
 })
 
