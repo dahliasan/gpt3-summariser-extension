@@ -1,4 +1,4 @@
-# AI powered email summariser
+# AI powered summariser
 
 ### Welcome 👋
 
@@ -22,9 +22,8 @@ It is powered by OpenAI's GPT3.
 
 #### How to use
 
-Only works for gmail.
 
-1. **Generate summary for entire email:**
+1. **Generate summary for entire email:** (only works for gmail)
 
    To generate a summary, open an email in gmail > right click on page > select "generate email summary" to sumamrise the entire email
 
