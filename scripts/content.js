@@ -1,4 +1,39 @@
-const createPopupWindow = () => {
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // If messages contains content to inject into page
+  if (request.type === 'inject') {
+    const { message } = request
+
+    // Call  insert function
+    const result = insert(message)
+
+    // If something went wrong, send a failed status
+    if (!result) {
+      sendResponse({ status: 'failed' })
+    }
+
+    sendResponse({ status: 'success' })
+  }
+
+  // If message requests the entire email content
+  if (request.type === 'get_email') {
+    const emailText = document.querySelector('.gs .ii.gt')?.innerText || ''
+
+    console.log('Requested to get entire email, sending:', emailText)
+
+    sendResponse({ text: emailText })
+  }
+
+  // If message requests the selected text
+  if (request.type === 'get_selection') {
+    // Get the selected text
+    const selectedText = window.getSelection().toString()
+    // Send the selected text as a response
+    sendResponse({ text: selectedText })
+  }
+})
+
+// Create pop-up window
+function createPopupWindow() {
   // Now, create a pop-up window with the message
   let popup = document.createElement('div')
   popup.setAttribute('id', 'window1')
@@ -32,56 +67,73 @@ const createPopupWindow = () => {
   return document.getElementById('summary-content')
 }
 
-const insert = async (content, tabId) => {
-  // Find the section on the page to insert our summary div
+// Insert content into page
+async function insert(message, tabId) {
+  const { content, title, url } = message
 
+  // Split content by \n
+  const splitContent = content.split('\n')
+
+  // Format content
+  let contentHtml = splitContent
+    .map((content) => {
+      if (content === '') {
+        return ''
+      }
+
+      if (content.startsWith('- ')) {
+        const li = document.createElement('li')
+        li.innerText = content.replace('- ', '')
+        return li.outerHTML
+      }
+
+      if (content.startsWith('• ')) {
+        const li = document.createElement('li')
+        li.innerText = content.replace('• ', '')
+        return li.outerHTML
+      }
+
+      const p = document.createElement('p')
+      p.innerText = content
+      return p.outerHTML
+    })
+    .join('')
+
+  // Find sequenece of li in contentHtml
+  const liRegex = /<li>.*?<\/li>/g
+  const liMatches = contentHtml.match(liRegex)
+  console.log(liMatches)
+
+  // If there are li matches, replace them with a ul
+  if (liMatches) {
+    const ul = document.createElement('ul')
+    ul.innerHTML = liMatches.join('')
+
+    contentHtml = contentHtml.replace(ul.innerHTML, ul.outerHTML)
+    console.log(ul)
+    console.log(contentHtml)
+  }
+
+  // Add title and url to contentHtml
+  if (url && title) {
+    contentHtml = `<p style='font-weight: bold;'><a href="${url}">${title}</a></p>${contentHtml}`
+  }
+
+  // Find the section on the page to insert our summary div
   let summaryElement = document.getElementById('summary-content')
 
   if (!summaryElement) {
     // If popup element doesn't exist, create one and inject message
     summaryElement = createPopupWindow()
-    summaryElement.innerHTML = content
+    summaryElement.innerHTML = contentHtml
   } else {
     // If popup element exists, inject new message
-    summaryElement.innerHTML = content
+    summaryElement.innerHTML = contentHtml
   }
 
   // On success return true
   return true
 }
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // If messages contains content to inject into page
-  if (request.message === 'inject') {
-    const { content } = request
-
-    // Call this insert function
-    const result = insert(content)
-
-    // If something went wrong, send a failed status
-    if (!result) {
-      sendResponse({ status: 'failed' })
-    }
-
-    sendResponse({ status: 'success' })
-  }
-
-  // If message requests the entire email content
-  if (request.message === 'get_email') {
-    const emailText = document.querySelector('.gs .ii.gt')?.innerText || ''
-
-    console.log('Requested to get entire email, sending:', emailText)
-
-    sendResponse({ text: emailText })
-  }
-
-  if (request.message === 'get_selection') {
-    // Get the selected text
-    const selectedText = window.getSelection().toString()
-    // Send the selected text as a response
-    sendResponse({ text: selectedText })
-  }
-})
 
 // Drag element function
 function dragElement(elmnt) {

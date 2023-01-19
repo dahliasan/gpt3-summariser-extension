@@ -1,6 +1,6 @@
 {
-  "name": "AI Powered Summariser",
-  "description": "TL;DR everything!",
+  "name": "tl;dr generator",
+  "description": "Reduce reading time by generating summaries!",
   "version": "1.0.1",
   "manifest_version": 3,
   "icons": {
@@ -34,5 +34,11 @@
       "description": "Generate summary",
       "suggested_key": "Ctrl+Shift+E"
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "matches": ["https://*/*"],
+      "resources": ["content.css", "fonts/*"]
+    }
+  ]
 }

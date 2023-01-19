@@ -2,6 +2,19 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.text) {
     console.log('Received input: ' + request.text)
+
+    // Inject CSS
+    const tab = getCurrentTab()
+    const css = 'body { background-color: red; }'
+
+    chrome.scripting
+      .insertCSS({
+        target: { tabId: tab.id },
+        css: css,
+      })
+      .then(() => console.log('CSS injected'))
+
+    // Send a message to the content script to inject the summary
     generateCompletionAction(request.text, request.info, request.tab)
   }
 })
@@ -13,7 +26,6 @@ chrome.runtime.onInstalled.addListener(() => {
     id: 'gpt-summarise',
     title: 'Generate summary',
     contexts: ['all'],
-    // documentUrlPatterns: ['*://mail.google.com/*'],
   })
 
   // Create new tab to landing page
@@ -73,14 +85,14 @@ async function getKey() {
   })
 }
 
-async function sendInjectionMessage(content, tab) {
+async function sendInjectionMessage(message, tab) {
   const targetTab = tab || getCurrentTab()
 
   console.log('sending injection message to:', targetTab)
 
   chrome.tabs.sendMessage(
     targetTab.id,
-    { message: 'inject', content },
+    { type: 'inject', message },
     (response) => {
       if (response.status === 'failed') {
         console.log('injection failed.')
@@ -104,7 +116,7 @@ async function generate(prompt) {
     body: JSON.stringify({
       model: 'text-davinci-003',
       prompt: prompt,
-      max_tokens: 1000,
+      max_tokens: 256,
       temperature: 0,
     }),
   })
@@ -122,16 +134,32 @@ async function generateCompletionAction(text, info, tab) {
     // Send mesage with generating text (this will be like a loading indicator)
 
     const activeTab = tab
-    sendInjectionMessage('generating...', activeTab)
+    sendInjectionMessage({ content: 'generating...' }, activeTab)
 
-    const basePromptPrefix = `Rewrite this for brevity, in outline form and in html: `
-
-    const summaryCompletion = await generate(`${basePromptPrefix}${text}`)
+    const summaryCompletion = await generate(
+      `Article:\n${text}\n\nArticle summary followed by actionable advice or wisdom in bullet points:`
+    )
 
     console.log(summaryCompletion)
 
+    // Save new summary to local storage
+    const summaryObject = {
+      title: activeTab.title,
+      url: activeTab.url,
+      content: summaryCompletion.text,
+    }
+
+    chrome.storage.local.set(
+      {
+        [`summary${Date.now()}`]: summaryObject,
+      },
+      function () {
+        console.log('Summary saved to local storage')
+      }
+    )
+
     // Send the output when we're all done
-    sendInjectionMessage(summaryCompletion.text, activeTab)
+    sendInjectionMessage(summaryObject, activeTab)
   } catch (error) {
     console.log(error)
 
