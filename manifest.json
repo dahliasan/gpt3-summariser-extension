@@ -17,10 +17,9 @@
     "service_worker": "scripts/background.js"
   },
   "permissions": ["contextMenus", "tabs", "storage"],
-  "host_permissions": ["https://*/*"],
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
+      "matches": ["<all_urls>"],
       "js": ["scripts/content.js"],
       "css": ["content.css"]
     }
