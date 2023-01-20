@@ -16,7 +16,7 @@
   "background": {
     "service_worker": "scripts/background.js"
   },
-  "permissions": ["contextMenus", "tabs", "storage", "scripting"],
+  "permissions": ["contextMenus", "tabs", "storage"],
   "host_permissions": ["https://*/*"],
   "content_scripts": [
     {
