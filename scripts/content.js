@@ -81,15 +81,17 @@ async function insert(message, tabId) {
         return ''
       }
 
-      if (content.startsWith('- ')) {
+      if (content.startsWith('-')) {
         const li = document.createElement('li')
-        li.innerText = content.replace('- ', '')
+        li.innerText = content.replace('-', '')
+        li.innerText = li.innerText.trim()
         return li.outerHTML
       }
 
-      if (content.startsWith('• ')) {
+      if (content.startsWith('•')) {
         const li = document.createElement('li')
-        li.innerText = content.replace('• ', '')
+        li.innerText = content.replace('•', '')
+        li.innerText = li.innerText.trim()
         return li.outerHTML
       }
 
@@ -102,7 +104,6 @@ async function insert(message, tabId) {
   // Find sequenece of li in contentHtml
   const liRegex = /<li>.*?<\/li>/g
   const liMatches = contentHtml.match(liRegex)
-  console.log(liMatches)
 
   // If there are li matches, replace them with a ul
   if (liMatches) {
@@ -110,8 +111,6 @@ async function insert(message, tabId) {
     ul.innerHTML = liMatches.join('')
 
     contentHtml = contentHtml.replace(ul.innerHTML, ul.outerHTML)
-    console.log(ul)
-    console.log(contentHtml)
   }
 
   // Add title and url to contentHtml

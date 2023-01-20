@@ -3,17 +3,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.text) {
     console.log('Received input: ' + request.text)
 
-    // Inject CSS
-    const tab = getCurrentTab()
-    const css = 'body { background-color: red; }'
-
-    chrome.scripting
-      .insertCSS({
-        target: { tabId: tab.id },
-        css: css,
-      })
-      .then(() => console.log('CSS injected'))
-
     // Send a message to the content script to inject the summary
     generateCompletionAction(request.text, request.info, request.tab)
   }
@@ -29,7 +18,9 @@ chrome.runtime.onInstalled.addListener(() => {
   })
 
   // Create new tab to landing page
-  //  chrome.tabs.create({ url: '' })
+  chrome.tabs.create({
+    url: 'https://fxhd.notion.site/TLDR-Summariser-Chrome-Extension-317ba7f2f1c5443cbc99a220c5d073b0',
+  })
 })
 
 // Add listener to commands (keyboard shortcuts)
@@ -126,6 +117,12 @@ async function generate(prompt) {
 
   console.log('openai replied:', completion)
 
+  // handle prompt too long error {"error":{"message":"This model's maximum context length is 4097 tokens, however you requested 5443 tokens (5187 in your prompt; 256 for the completion). Please reduce your prompt; or completion length.","type":"invalid_request_error","param":null,"code":null}}
+  if (completion.error) {
+    // throw error message
+    throw completion.error.message
+  }
+
   return completion.choices.pop()
 }
 
@@ -133,8 +130,7 @@ async function generateCompletionAction(text, info, tab) {
   try {
     // Send mesage with generating text (this will be like a loading indicator)
 
-    const activeTab = tab
-    sendInjectionMessage({ content: 'generating...' }, activeTab)
+    sendInjectionMessage({ content: 'generating...' }, tab)
 
     const summaryCompletion = await generate(
       `Article:\n${text}\n\nArticle summary followed by actionable advice or wisdom in bullet points:`
@@ -144,8 +140,8 @@ async function generateCompletionAction(text, info, tab) {
 
     // Save new summary to local storage
     const summaryObject = {
-      title: activeTab.title,
-      url: activeTab.url,
+      title: tab.title,
+      url: tab.url,
       content: summaryCompletion.text,
     }
 
@@ -159,11 +155,20 @@ async function generateCompletionAction(text, info, tab) {
     )
 
     // Send the output when we're all done
-    sendInjectionMessage(summaryObject, activeTab)
+    sendInjectionMessage(summaryObject, tab)
   } catch (error) {
     console.log(error)
 
-    // Add this here as well to see if we run into any errors!
-    sendInjectionMessage(error.toString(), activeTab)
+    // if error contains Please reduce your prompt
+    if (error.includes('Please reduce your prompt')) {
+      // Add this here as well to see if we run into any errors!
+      sendInjectionMessage(
+        {
+          content:
+            '😢 Your selected text is too long...\nPls select a smaller section and try again!',
+        },
+        tab
+      )
+    }
   }
 }
