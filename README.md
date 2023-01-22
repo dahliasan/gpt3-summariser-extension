@@ -12,7 +12,7 @@ It is powered by OpenAI's GPT3.
 
 Download on the chrome webstore [here](https://chrome.google.com/webstore/detail/tldr-summary-generator/khkckpdkkddnlhfebcglejikmgmimado)!
 
-**Or manually install**
+**Or manually install (will always be the latest version) **
 1. download the entire repo as a zip file on github
 2. unzip the package
 3. go to your browser's extensions page
