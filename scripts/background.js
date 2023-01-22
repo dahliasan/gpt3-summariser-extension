@@ -22,9 +22,9 @@ chrome.runtime.onInstalled.addListener(() => {
   })
 
   // Create new tab to landing page
-  // chrome.tabs.create({
-  //   url: 'https://fxhd.notion.site/TLDR-Summariser-Chrome-Extension-317ba7f2f1c5443cbc99a220c5d073b0',
-  // })
+  chrome.tabs.create({
+    url: 'https://fxhd.notion.site/TLDR-Summariser-Chrome-Extension-317ba7f2f1c5443cbc99a220c5d073b0',
+  })
 
   checkSummariesFormat()
 })
