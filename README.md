@@ -1,4 +1,4 @@
-# AI powered summariser chrome extension
+# tldr summary generator chrome extension
 
 ### Welcome 👋
 
