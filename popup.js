@@ -84,9 +84,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     const { searchResults: results } = request
 
-    // filter search results from response with similarity score > 0.5
+    // filter search results from response with similarity score > than average score
+
+    // get average similarity score
+    const averageScore =
+      results.reduce((acc, curr) => {
+        return acc + curr.similarity
+      }, 0) / results.length
+
+    console.log('average score: ', averageScore)
+
+    // filter results
     const filteredResults = results.filter((result) => {
-      return result.similarity > 0.5
+      return result.similarity > averageScore
     })
 
     // Create new summary component of search results
