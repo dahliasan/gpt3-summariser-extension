@@ -1,6 +1,6 @@
 {
-  "name": "tldr summary generator",
-  "description": "Reduce reading time by generating summaries!",
+  "name": "summarizooor",
+  "description": "Summarise any webpage with a single click",
   "version": "0.0.0.2",
   "manifest_version": 3,
   "icons": {
