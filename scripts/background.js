@@ -1,3 +1,12 @@
+const APIS = {
+  detailed:
+    'https://www.everyprompt.com/api/v0/calls/personal-17/detailed-summary-and-advice-pZMlOa',
+  short:
+    'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-pZMlOa',
+  longer:
+    'https://www.everyprompt.com/api/v0/calls/personal-17/longer-summary-pZMlOa',
+}
+
 // Create message listener
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.text) {
@@ -27,6 +36,16 @@ chrome.runtime.onInstalled.addListener(() => {
   })
 
   checkSummariesFormat()
+
+  // Create unique user id for api calls
+  const uniqueUserId =
+    Date.now().toString() + Math.random().toString(36).substring(2, 15)
+  // store the unique user ID in chrome.storage.local
+  chrome.storage.local.set({ uniqueUserId }, () => {
+    console.log(
+      'Unique user ID stored in chrome.storage.local: ' + uniqueUserId
+    )
+  })
 })
 
 // Add listener to commands (keyboard shortcuts)
@@ -68,7 +87,7 @@ chrome.runtime.onStartup.addListener(() => {
   checkSummariesFormat()
 })
 
-// functions
+// Functions
 async function getCurrentTab() {
   let queryOptions = { active: true, lastFocusedWindow: true }
   // `tab` will either be a `tabs.Tab` instance or `undefined`.
@@ -128,12 +147,36 @@ async function generate(prompt) {
 
   console.log('openai replied:', completion)
 
-  // handle prompt too long error {"error":{"message":"This model's maximum context length is 4097 tokens, however you requested 5443 tokens (5187 in your prompt; 256 for the completion). Please reduce your prompt; or completion length.","type":"invalid_request_error","param":null,"code":null}}
   if (completion.error) {
     // throw error message
     throw completion.error.message
   }
 
+  return completion.choices.pop()
+}
+
+// async function to generate completions using different api
+
+async function generateFromEveryPrompt(prompt, apiUrl) {
+  const userId = await getUniqueUserId()
+  const completionResponse = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer wVcIxPHJadXQotPGPgjR5',
+    },
+    body: JSON.stringify({
+      variables: {
+        text: prompt,
+      },
+      user: userId,
+    }),
+  })
+  const completion = await completionResponse.json()
+  console.log('API replied:', completion)
+  if (completion.object === 'error') {
+    throw completion.message
+  }
   return completion.choices.pop()
 }
 
@@ -143,11 +186,12 @@ async function generateCompletionAction(text, info, tab) {
 
     sendInjectionMessage({ content: 'generating...' }, tab)
 
-    const summaryCompletion = await generate(
-      `${text}\n\nDetailed summary of article. Followed by any actionable advice/wisdom in bullet points:
-`
-    )
-    console.log(summaryCompletion)
+    //     const summaryCompletion = await generate(
+    //       `${text}\n\nDetailed summary of article. Followed by any actionable advice/wisdom in bullet points:
+    // `
+    //     )
+
+    const summaryCompletion = await generateFromEveryPrompt(text)
 
     // Save new summary to local storage
     let summaryObject = {
@@ -182,18 +226,7 @@ async function generateCompletionAction(text, info, tab) {
     )
   } catch (error) {
     console.log(error)
-
-    // if error contains Please reduce your prompt
-    if (error.includes('Please reduce your prompt')) {
-      // Add this here as well to see if we run into any errors!
-      sendInjectionMessage(
-        {
-          content:
-            '😢 your selected text is too long...\npls select a smaller section and try again!',
-        },
-        tab
-      )
-    }
+    sendInjectionMessage(error)
   }
 }
 
@@ -242,7 +275,38 @@ async function getEmbeddings(input) {
 
 async function searchSummaries(query) {
   try {
-    const searchInputEmbedding = await getEmbeddings(query)
+    // Get embedding of query
+    // Check if query already exists in local storage
+
+    const items = await new Promise((resolve) => {
+      chrome.storage.local.get(null, (items) => {
+        resolve(items)
+      })
+    })
+
+    let searchInputEmbedding
+
+    for (const key in items) {
+      if (key.includes('searchQuery')) {
+        const searchQuery = items[key]
+        if (searchQuery.query === query) {
+          // If query already exists use that embedding
+          console.log('query already exists')
+          // delete that query from local storage
+          chrome.storage.local.remove(key)
+          // save embedding to searchInputEmbedding
+          searchInputEmbedding = searchQuery.embedding
+          break
+        }
+      }
+    }
+
+    console.log(searchInputEmbedding)
+
+    if (!searchInputEmbedding) {
+      console.log('running getEmbeddings')
+      searchInputEmbedding = await getEmbeddings(query)
+    }
 
     let searchQueryObject = {
       date: Date.now(),
@@ -357,4 +421,54 @@ function checkSummariesFormat() {
 
     console.log(items)
   })
+}
+
+function getUniqueUserId() {
+  return new Promise((resolve) => {
+    // check if the unique user ID is already stored in chrome.storage.local
+    chrome.storage.local.get(['uniqueUserId'], (result) => {
+      if (result.uniqueUserId) {
+        // return the unique user ID if it exists
+        resolve(result.uniqueUserId)
+      } else {
+        // generate a new unique user ID
+        const newUniqueUserId =
+          Date.now().toString() + Math.random().toString(36).substring(2, 15)
+        // store the new unique user ID in chrome.storage.local
+        chrome.storage.local.set({ uniqueUserId: newUniqueUserId }, () => {
+          // return the new unique user ID
+          resolve(newUniqueUserId)
+        })
+      }
+    })
+  })
+}
+
+function generateLongText(input) {
+  const splitChunks = (input) => {
+    // Split the content at the paragram level in chunks smaller than 4k characters.
+    const CHUNK_SIZE = 4000
+    let paragraphs = input.split('\n\n')
+    let splits = []
+    let current = []
+    paragraphs.forEach((p) => {
+      if (
+        current.reduce((tot, str) => tot + str.length, 0) + p.length >
+        CHUNK_SIZE
+      ) {
+        splits.push(current.join('\n\n'))
+        current = []
+      }
+      current.push(p)
+    })
+    if (current.length > 0) {
+      splits.push(current.join('\n\n'))
+    }
+    return splits
+  }
+
+  const chunks = splitChunks(input)
+
+  // Summarize the paragraphs above in under 512 characters.
+  const MAX_SUMMARY_LENGTH = 512
 }

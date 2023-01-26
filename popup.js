@@ -110,27 +110,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })
 
     // Create view all summaries button with id view_all_summaries
-    const viewAllButton = document.createElement('button')
-    viewAllButton.id = 'view_all_summaries'
-    viewAllButton.innerHTML = 'View All Summaries'
+    if (!document.getElementById('view_all_summaries')) {
+      const viewAllButton = document.createElement('button')
+      viewAllButton.id = 'view_all_summaries'
+      viewAllButton.innerHTML = 'View All Summaries'
 
-    // append as sibling
-    const searchForm = document.querySelector('.form:has(#search_input)')
-    searchForm.parentNode.insertBefore(viewAllButton, searchForm.nextSibling)
-    viewAllButton.style.display = 'block'
+      // append as sibling
+      const searchForm = document.querySelector('.form:has(#search_input)')
+      searchForm.parentNode.insertBefore(viewAllButton, searchForm.nextSibling)
+      viewAllButton.style.display = 'block'
 
-    // event listener on view all summaries button
-    viewAllButton.addEventListener('click', (e) => {
-      document.getElementById('summaries').innerHTML = ''
-      console.log(document.getElementById('summaries'))
-      fetchSummaries()
+      // event listener on view all summaries button
+      viewAllButton.addEventListener('click', (e) => {
+        document.getElementById('summaries').innerHTML = ''
+        console.log(document.getElementById('summaries'))
+        fetchSummaries()
 
-      // remove view all summaries button
-      viewAllButton.remove()
+        // remove view all summaries button
+        viewAllButton.remove()
 
-      // clear search input field
-      document.getElementById('search_input').value = ''
-    })
+        // clear search input field
+        document.getElementById('search_input').value = ''
+      })
+    }
   }
 })
 
