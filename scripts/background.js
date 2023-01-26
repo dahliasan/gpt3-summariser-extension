@@ -1,10 +1,8 @@
 const APIS = {
   detailed:
     'https://www.everyprompt.com/api/v0/calls/personal-17/detailed-summary-and-advice-pZMlOa',
-  short:
-    'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-pZMlOa',
-  longer:
-    'https://www.everyprompt.com/api/v0/calls/personal-17/longer-summary-pZMlOa',
+  short: '',
+  longer: '',
 }
 
 // Create message listener
@@ -191,7 +189,7 @@ async function generateCompletionAction(text, info, tab) {
     // `
     //     )
 
-    const summaryCompletion = await generateFromEveryPrompt(text)
+    const summaryCompletion = await generateFromEveryPrompt(text, APIS.detailed)
 
     // Save new summary to local storage
     let summaryObject = {
