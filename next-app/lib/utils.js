@@ -5,106 +5,13 @@ const APIS = {
   longer: '',
 }
 
-// Create message listener
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.text) {
-    console.log('Received input: ' + request.text)
-
-    // Send a message to the content script to inject the summary
-    generateCompletionAction(request.text, request.info, request.tab)
-  }
-
-  if (request.searchValue) {
-    searchSummaries(request.searchValue)
-  }
-})
-
-// On extension installation
-chrome.runtime.onInstalled.addListener(() => {
-  // Create the context menu
-  chrome.contextMenus.create({
-    id: 'gpt-summarise',
-    title: 'Generate summary',
-    contexts: ['all'],
-  })
-
-  // Create new tab to landing page
-  chrome.tabs.create({
-    url: 'https://fxhd.notion.site/TLDR-Summariser-Chrome-Extension-317ba7f2f1c5443cbc99a220c5d073b0',
-  })
-
-  checkSummariesFormat()
-
-  // Create unique user id for api calls
-  const uniqueUserId =
-    Date.now().toString() + Math.random().toString(36).substring(2, 15)
-  // store the unique user ID in chrome.storage.local
-  chrome.storage.local.set({ uniqueUserId }, () => {
-    console.log(
-      'Unique user ID stored in chrome.storage.local: ' + uniqueUserId
-    )
-  })
-})
-
-// Add listener to commands (keyboard shortcuts)
-chrome.commands.onCommand.addListener((command, tab) => {
-  if (command === 'open_chatgpt') {
-    console.log('open_chatgpt command used')
-    chrome.tabs.create({ url: 'https://chat.openai.com/chat' })
-  }
-
-  if (command === 'generate_summary') {
-    console.log('generate_summary command used')
-    // Send a message to the content script of the active tab
-    chrome.tabs.sendMessage(
-      tab.id,
-      { message: 'get_selection' },
-      (response) => {
-        // Do something with the selected text
-        console.log('selected text received: ', response.text)
-        generateCompletionAction(response.text, info, tab)
-      }
-    )
-  }
-})
-
-// Add listener to context menu
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.selectionText) {
-    generateCompletionAction(info.selectionText, info, tab)
-  } else {
-    chrome.tabs.sendMessage(tab.id, { message: 'get_email' }, (response) => {
-      console.log('Entire email content received: ', response)
-      generateCompletionAction(response.text, info, tab)
-    })
-  }
-})
-
-// On startup
-chrome.runtime.onStartup.addListener(() => {
-  checkSummariesFormat()
-})
-
-// Functions
-async function getCurrentTab() {
+export async function getCurrentTab() {
   let queryOptions = { active: true, lastFocusedWindow: true }
-  // `tab` will either be a `tabs.Tab` instance or `undefined`.
   let [tab] = await chrome.tabs.query(queryOptions)
   return tab
 }
 
-async function getKey() {
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get(['openai-key'], (result) => {
-      if (result['openai-key']) {
-        const decodedKey = atob(result['openai-key'])
-        resolve(decodedKey)
-      }
-    })
-  })
-}
-
-async function sendInjectionMessage(message, tab) {
+export async function sendInjectionMessage(message, tab) {
   const targetTab = tab || getCurrentTab()
 
   console.log('sending injection message to:', targetTab)
@@ -120,42 +27,7 @@ async function sendInjectionMessage(message, tab) {
   )
 }
 
-async function generate(prompt) {
-  // Get your API key from storage
-  const key = await getKey()
-  const url = 'https://api.openai.com/v1/completions'
-
-  // Call completions endpoint
-  const completionResponse = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: 'text-davinci-003',
-      prompt: prompt,
-      max_tokens: 1000,
-      temperature: 0,
-    }),
-  })
-
-  // Select the top choice and send back
-  const completion = await completionResponse.json()
-
-  console.log('openai replied:', completion)
-
-  if (completion.error) {
-    // throw error message
-    throw completion.error.message
-  }
-
-  return completion.choices.pop()
-}
-
-// async function to generate completions using different api
-
-async function generateFromEveryPrompt(prompt, apiUrl) {
+export async function generateFromEveryPrompt(prompt, apiUrl) {
   const userId = await getUniqueUserId()
   const completionResponse = await fetch(apiUrl, {
     method: 'POST',
@@ -178,16 +50,11 @@ async function generateFromEveryPrompt(prompt, apiUrl) {
   return completion.choices.pop()
 }
 
-async function generateCompletionAction(text, info, tab) {
+export async function generateCompletionAction(text, info, tab) {
   try {
     // Send mesage with generating text (this will be like a loading indicator)
 
     sendInjectionMessage({ content: 'generating...' }, tab)
-
-    //     const summaryCompletion = await generate(
-    //       `${text}\n\nDetailed summary of article. Followed by any actionable advice/wisdom in bullet points:
-    // `
-    //     )
 
     const summaryCompletion = await generateFromEveryPrompt(text, APIS.detailed)
 
@@ -228,7 +95,7 @@ async function generateCompletionAction(text, info, tab) {
   }
 }
 
-async function getNextId() {
+export async function getNextId() {
   let result = await new Promise((resolve) =>
     chrome.storage.local.get(['summaryIndex'], resolve)
   )
@@ -240,21 +107,16 @@ async function getNextId() {
   return id
 }
 
-async function getEmbeddings(input) {
-  // Get your API key from storage
-  const key = await getKey()
-  const url = 'https://api.openai.com/v1/embeddings'
-  const model = 'text-embedding-ada-002'
+export async function getEmbeddings(input) {
+  const url = 'https://summarizooor-server.vercel.app/api/embeddings'
 
   // Call embeddings endpoint
   const embeddingsResponse = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: model,
       input: input,
     }),
   })
@@ -268,14 +130,14 @@ async function getEmbeddings(input) {
     throw embeddings.error.message
   }
 
-  return embeddings.data[0].embedding
+  return embeddings.data.embedding
 }
 
-async function searchSummaries(query) {
+export async function searchSummaries(query) {
   try {
+    console.log('searching summarries...')
     // Get embedding of query
     // Check if query already exists in local storage
-
     const items = await new Promise((resolve) => {
       chrome.storage.local.get(null, (items) => {
         resolve(items)
@@ -289,7 +151,9 @@ async function searchSummaries(query) {
         const searchQuery = items[key]
         if (searchQuery.query === query) {
           // If query already exists use that embedding
-          console.log('query already exists')
+          console.log(
+            'query already exists - no need to fetch embeddings again...'
+          )
           // delete that query from local storage
           chrome.storage.local.remove(key)
           // save embedding to searchInputEmbedding
@@ -299,10 +163,8 @@ async function searchSummaries(query) {
       }
     }
 
-    console.log(searchInputEmbedding)
-
     if (!searchInputEmbedding) {
-      console.log('running getEmbeddings')
+      console.log('query does not exist - fetching embeddings...')
       searchInputEmbedding = await getEmbeddings(query)
     }
 
@@ -346,7 +208,7 @@ async function searchSummaries(query) {
           )
         }
       )
-      console.log(searchResults)
+      console.log('sending search results...', searchResults)
 
       // Send search results back to popup
       chrome.runtime.sendMessage({
@@ -359,7 +221,7 @@ async function searchSummaries(query) {
   }
 }
 
-function cosineSimilarity(vecA, vecB) {
+export function cosineSimilarity(vecA, vecB) {
   if (!vecA || !vecB) {
     console.log('vecA: ', vecA)
     console.log('vecB: ', vecB)
@@ -385,7 +247,8 @@ function cosineSimilarity(vecA, vecB) {
   return dotProduct(vecA, vecB) / (magnitude(vecA) * magnitude(vecB))
 }
 
-function checkSummariesFormat() {
+export function checkSummariesFormat() {
+  console.log('checking if summaries are in correct format')
   chrome.storage.local.get(null, async (items) => {
     for (const key in items) {
       if (key.includes('summary') && !key.includes('summaryIndex')) {
@@ -421,7 +284,7 @@ function checkSummariesFormat() {
   })
 }
 
-function getUniqueUserId() {
+export function getUniqueUserId() {
   return new Promise((resolve) => {
     // check if the unique user ID is already stored in chrome.storage.local
     chrome.storage.local.get(['uniqueUserId'], (result) => {
@@ -442,7 +305,7 @@ function getUniqueUserId() {
   })
 }
 
-function generateLongText(input) {
+export function generateLongText(input) {
   const splitChunks = (input) => {
     // Split the content at the paragram level in chunks smaller than 4k characters.
     const CHUNK_SIZE = 4000

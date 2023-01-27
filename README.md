@@ -12,15 +12,13 @@ It is powered by OpenAI's GPT3.
 
 🥳 Download on the chrome webstore [here](https://chrome.google.com/webstore/detail/tldr-summary-generator/khkckpdkkddnlhfebcglejikmgmimado)!
 
-**Or manually install**
+**Or manually install (if you want the latest version)**
 
 1. download the entire repo as a zip file on github
 2. unzip the package
 3. go to your browser's extensions page
 4. turn on developer mode
-5. click on "load unpacked", select the extension's folder.
-6. Sign up for a free OpenAI account and [generate an api key](https://beta.openai.com/account/api-keys)
-7. click on the extension icon on the toolbar and paste your api key. This is stored locally on your computer so no one else but you has access to it!
+5. click on "load unpacked", select the "extension" folder.
 
 #### How to use
 

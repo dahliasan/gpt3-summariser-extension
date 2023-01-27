@@ -1,7 +1,7 @@
 {
   "name": "summarizooor",
   "description": "Summarise any webpage with a single click",
-  "version": "0.0.0.2",
+  "version": "0.0.0.3",
   "manifest_version": 3,
 
   "action": {
@@ -22,8 +22,8 @@
 
   "web_accessible_resources": [
     {
-      "matches": ["https://*/*"],
-      "resources": ["content.css", "fonts/*"]
+      "matches": ["<all_urls>"],
+      "resources": ["*/static/*/*"]
     }
   ]
 }
