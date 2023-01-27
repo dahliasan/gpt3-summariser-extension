@@ -1,5 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  /* font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif; */
+  font-family: var(--font-sora);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 * {
-  /* outline: 1px solid limegreen !important; */
+  box-sizing: border-box;
 }
 
 :root {
@@ -9,10 +27,6 @@
   --green: #004643;
   --lightgray: #f4f4f4;
   --borderRadius: 5px;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 body,
@@ -25,14 +39,9 @@ p {
   margin: 0;
 }
 
-html,
 body {
   height: fit-content;
-}
-
-body {
   min-width: 300px;
-  font-family: 'Sora', sans-serif;
   font-size: 1rem;
   font-weight: 400;
   line-height: 1.5;
@@ -43,11 +52,6 @@ body {
 
 body > * {
   padding-top: 1rem;
-}
-
-#key_needed,
-#key_entered {
-  padding-top: 0px;
 }
 
 ::-webkit-scrollbar {
@@ -64,6 +68,11 @@ body > * {
   background-color: var(--lightgray);
   border: none;
   border-radius: 9999px;
+}
+
+#key_needed,
+#key_entered {
+  padding-top: 0px;
 }
 
 #key_needed > *:not(:first-child),

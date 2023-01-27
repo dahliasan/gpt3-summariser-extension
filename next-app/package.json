@@ -1,0 +1,27 @@
+{
+  "name": "next-app",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "npm run bundle && next build && next export && mv out/_next out/next && sed -i '' -e 's/\\/_next/\\.\\/next/g' out/**.html && mv out/index.html ../extension && rsync -va --delete-after out/next/ ../extension/next/ && rm -rf out && rsync -va --delete-after public/next-assets ../extension/",
+    "bundle": "webpack --config webpack.config.js",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.4.2",
+    "@next/font": "^13.1.5",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.13",
+    "eslint": "^8.32.0",
+    "eslint-config-next": "^13.1.5",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.2.4",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1"
+  }
+}
