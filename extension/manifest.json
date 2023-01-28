@@ -1,6 +1,6 @@
 {
   "name": "summarizooor",
-  "description": "Summarise any webpage with a single click",
+  "description": "Summarize any webpage with a single click",
   "version": "0.0.0.3",
   "manifest_version": 3,
   "icons": {
@@ -11,7 +11,7 @@
   },
   "action": {
     "default_popup": "index.html",
-    "default_title": "Summarise this!"
+    "default_title": "Summarize this!"
   },
   "background": {
     "service_worker": "background.bundle.js"
