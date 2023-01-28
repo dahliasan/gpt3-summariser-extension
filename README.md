@@ -8,6 +8,8 @@ This is a chrome extension that automatically generate summaries of text, allowi
 
 It is powered by OpenAI's GPT3.
 
+Free to use!
+
 ### How to install
 
 🥳 Download on the chrome webstore [here](https://chrome.google.com/webstore/detail/tldr-summary-generator/khkckpdkkddnlhfebcglejikmgmimado)!
@@ -20,23 +22,25 @@ It is powered by OpenAI's GPT3.
 4. turn on developer mode
 5. click on "load unpacked", select the "extension" folder.
 
-#### How to use
+### How to use
 
-1. **Generate summary for entire email:** (only works for gmail)
+#### Generating a summary
 
-   To generate a summary, open an email in gmail > right click on page > select "generate email summary" to sumamrise the entire email
+There are 2 ways to generate a summary:
 
-2. **Generate summary only for highlighted text:**
+1. **Entire webpage** –
+   Right-click anywhere on a webpage > click 'summarize this!'
 
-   highlight the text you want summarised > right-click on page > generate email summary
+2. **A selection of text** – Highlight the text you want summarize > right-click anywhere on the page > click 'summarize this!'
+
+#### Searching your history of summaries
+
+You can search your summaries semantically! This means you can ask a question in the search bar to find relevant summaries.
 
 ### Todos / Roadmap
 
-- add error message to the UI if user is out of credits
 - different types of summaries
-- make summaries more cost efficient
 - handle longer summaries
-- offer free credits to start generating quickly
 - 1-click share summary to social media
 - new tab to view all summaries on a bigger screen
 - explore other people's summaries and save them to your own database
