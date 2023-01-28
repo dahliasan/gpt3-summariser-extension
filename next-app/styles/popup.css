@@ -1,7 +1,3 @@
-* {
-  /* outline: 1px solid limegreen !important; */
-}
-
 :root {
   --black: #0c1618;
   --white: #fff;
@@ -11,7 +7,7 @@
   --borderRadius: 5px;
 }
 
-* {
+html * {
   box-sizing: border-box;
 }
 

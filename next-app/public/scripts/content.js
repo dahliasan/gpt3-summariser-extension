@@ -1,3 +1,13 @@
+console.log('hello from content script in next.js!')
+
+import { Readability } from '@mozilla/readability'
+
+function readable(doc) {
+  const reader = new Readability(doc)
+  const article = reader.parse()
+  return article
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // If messages contains content to inject into page
   if (request.type === 'inject') {
@@ -14,21 +24,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: 'success' })
   }
 
-  // If message requests the entire email content
-  if (request.type === 'get_email') {
-    const emailText = document.querySelector('.gs .ii.gt')?.innerText || ''
+  // If message requests the entire webpage content
+  if (request.type === 'get_webpage') {
+    let cloneDoc = document.cloneNode(true)
+    let parsed = readable(cloneDoc)
 
-    console.log('Requested to get entire email, sending:', emailText)
+    console.log('main content extracted:', parsed)
 
-    sendResponse({ text: emailText })
-  }
-
-  // If message requests the selected text
-  if (request.type === 'get_selection') {
-    // Get the selected text
-    const selectedText = window.getSelection().toString()
-    // Send the selected text as a response
-    sendResponse({ text: selectedText })
+    sendResponse({ text: parsed.textContent })
   }
 })
 
