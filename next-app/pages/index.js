@@ -1,10 +1,15 @@
 import { useEffect } from 'react'
-import { initSearchFunction, fetchSummaries } from '../lib/summaries'
+import {
+  initSearchFunction,
+  fetchSummaries,
+  listenForMessages,
+} from '../lib/summaries'
 
 const IndexPage = () => {
   useEffect(() => {
     initSearchFunction()
     fetchSummaries()
+    listenForMessages()
   }, [])
 
   return (

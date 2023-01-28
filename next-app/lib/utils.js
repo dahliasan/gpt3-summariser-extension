@@ -90,8 +90,19 @@ export async function generateCompletionAction(text, info, tab) {
       }
     )
   } catch (error) {
-    console.log(error)
-    sendInjectionMessage(error)
+    console.log('error message received: ', error)
+
+    if (error.includes('consider using fewer tokens')) {
+      sendInjectionMessage(
+        {
+          content:
+            '😢 your text is too long, try selecting a smaller section of text.',
+        },
+        tab
+      )
+    } else {
+      sendInjectionMessage({ content: error }, tab)
+    }
   }
 }
 

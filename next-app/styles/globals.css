@@ -50,10 +50,6 @@ body {
   padding: 1rem;
 }
 
-body > * {
-  padding-top: 1rem;
-}
-
 ::-webkit-scrollbar {
   width: 0.5rem;
   height: 12px;
@@ -143,6 +139,7 @@ input {
 #summaries {
   display: grid;
   gap: 5px;
+  margin-top: 1rem;
 }
 
 .summary {

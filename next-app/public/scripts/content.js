@@ -31,7 +31,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     console.log('main content extracted:', parsed)
 
-    sendResponse({ text: parsed })
+    sendResponse({ text: parsed.textContent })
   }
 })
 
