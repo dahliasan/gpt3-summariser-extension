@@ -30,8 +30,5 @@
       "matches": ["<all_urls>"],
       "resources": ["*/static/*/*", "fonts/*"]
     }
-  ],
-  "sandbox": {
-    "pages": ["sandboxed.html"]
-  }
+  ]
 }

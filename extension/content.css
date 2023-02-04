@@ -37,22 +37,6 @@ ul {
   /* text-decoration: none; */
 }
 
-::-webkit-scrollbar {
-  width: 0.5rem;
-  height: 12px;
-}
-
-#summary-content::-webkit-scrollbar-track {
-  background-color: transparent;
-  border-radius: 9999px;
-}
-
-#summary-content::-webkit-scrollbar-thumb {
-  background-color: var(--black);
-  border: none;
-  border-radius: 9999px;
-}
-
 #edit-input {
   display: none;
 }

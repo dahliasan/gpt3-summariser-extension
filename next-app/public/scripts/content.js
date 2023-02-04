@@ -1,4 +1,4 @@
-console.log('hello from content script in next.js!')
+console.log('summarizooor content script is running')
 
 import { Readability } from '@mozilla/readability'
 import { dragElement } from '../../lib/utils'
@@ -78,48 +78,10 @@ async function insert(message, tabId) {
   if (!summaryElement) {
     // If popup element doesn't exist, create one and inject message
     summaryElement = createPopupWindow()
-    // summaryElement.innerHTML = contentHtml
-
-    // Create the iframe element
-    var iframe = document.createElement('iframe')
-    iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts')
-
-    iframe.style.width = '100%'
-    iframe.style.height = '100%'
-
-    // Set the source of the iframe to your summary.html file
-    iframe.src = chrome.runtime.getURL('inject.html')
-
-    // Append the iframe to the popup
-    summaryElement.appendChild(iframe)
-
-    iframe.addEventListener('load', function () {
-      const content = iframe.contentDocument || iframe.contentWindow.document
-      const body = content.body
-      body.innerHTML = '<p>This is a sample summary</p>'
-    })
+    summaryElement.innerHTML = contentHtml
   } else {
     // If popup element exists, inject new message
-    // summaryElement.innerHTML = contentHtml
-
-    // Create the iframe element
-    var iframe = document.createElement('iframe')
-    iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts')
-
-    iframe.style.width = '100%'
-    iframe.style.height = '100%'
-
-    // Set the source of the iframe to your summary.html file
-    iframe.src = chrome.runtime.getURL('inject.html')
-
-    // Append the iframe to the popup
-    summaryElement.appendChild(iframe)
-
-    iframe.addEventListener('load', function () {
-      const content = iframe.contentDocument || iframe.contentWindow.document
-      const body = content.body
-      body.innerHTML = '<p>This is a sample summary</p>'
-    })
+    summaryElement.innerHTML = contentHtml
   }
 
   if (content === 'generating') {
