@@ -1,7 +1,33 @@
 console.log('summarizooor content script is running')
-
 import { Readability } from '@mozilla/readability'
+import { createCopyBtn } from '../../lib/summaries'
 import { dragElement } from '../../lib/utils'
+
+// Load fonts
+const font1Url = chrome.runtime.getURL('fonts/Sora-Regular.woff2')
+const font2Url = chrome.runtime.getURL('fonts/Sora-Bold.woff2')
+
+const fontStyleSheet = document.createElement('style')
+
+fontStyleSheet.textContent = `
+@font-face {
+  font-family: 'Sora';
+  src: url('${font1Url}') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Sora';
+  src: url('${font2Url}') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+`
+
+document.head.appendChild(fontStyleSheet)
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // If messages contains content to inject into page
@@ -35,7 +61,7 @@ function createPopupWindow() {
   // Now, create a pop-up window with the message
   let popup = document.createElement('div')
   popup.setAttribute('id', 'window1')
-  popup.className = 'window summary-wrapper'
+  popup.className = 'window summary__popup'
   document.body.appendChild(popup)
 
   // Add top bar wrapper for buttons
@@ -62,15 +88,13 @@ function createPopupWindow() {
   // Make pop-up window draggable
   dragElement(popup)
 
-  return document.getElementById('summary-content')
+  return summaryContent
 }
 
 // Insert content into page
 async function insert(message, tabId) {
-  const { content, title, url } = message
-
   // Split content by \n
-  let contentHtml = createContentHtml(content, url, title)
+  let contentHtml = createContentHtml(message)
 
   // Find the section on the page to insert our summary div
   let summaryElement = document.getElementById('summary-content')
@@ -84,7 +108,7 @@ async function insert(message, tabId) {
     summaryElement.innerHTML = contentHtml
   }
 
-  if (content === 'generating') {
+  if (message.content === 'generating') {
     // add class 'loading' to summary element
     summaryElement.classList.add('loading')
   } else {
@@ -92,37 +116,47 @@ async function insert(message, tabId) {
     summaryElement.classList.remove('loading')
   }
 
+  if (message.url) {
+    // Add a copy button to top bar
+    if (document.querySelector('.copy-button')) {
+      document.querySelector('.copy-button').remove()
+    }
+
+    const copyButton = createCopyBtn(message.content)
+    document
+      .querySelector('.top-bar')
+      .insertBefore(copyButton, document.querySelector('.close-btn'))
+  }
+
   // On success return true
   return true
 }
 
-function createContentHtml(content, url, title) {
+function createContentHtml({ content, url, title, timeSaved }) {
   const splitContent = content.split('\n')
 
   // Format content
   let contentHtml = splitContent
     .map((content) => {
-      if (content === '') {
-        return ''
+      let li
+      switch (true) {
+        case content === '':
+          return ''
+        case content.startsWith('-'):
+          li = document.createElement('li')
+          li.innerText = content.replace('-', '')
+          li.innerText = li.innerText.trim()
+          return li.outerHTML
+        case content.startsWith('•'):
+          li = document.createElement('li')
+          li.innerText = content.replace('•', '')
+          li.innerText = li.innerText.trim()
+          return li.outerHTML
+        default:
+          const p = document.createElement('p')
+          p.innerText = content
+          return p.outerHTML
       }
-
-      if (content.startsWith('-')) {
-        const li = document.createElement('li')
-        li.innerText = content.replace('-', '')
-        li.innerText = li.innerText.trim()
-        return li.outerHTML
-      }
-
-      if (content.startsWith('•')) {
-        const li = document.createElement('li')
-        li.innerText = content.replace('•', '')
-        li.innerText = li.innerText.trim()
-        return li.outerHTML
-      }
-
-      const p = document.createElement('p')
-      p.innerText = content
-      return p.outerHTML
     })
     .join('')
 
@@ -140,7 +174,9 @@ function createContentHtml(content, url, title) {
 
   // Add title and url to contentHtml
   if (url && title) {
-    contentHtml = `<p style='font-weight: bold;'><a href="${url}">${title}</a></p>${contentHtml}`
+    contentHtml = `<p style='font-weight: bold;'><a href="${url}">${title}</a></p><p class='time-saved'>Reading time saved: ${Math.round(
+      timeSaved
+    )} mins</p>${contentHtml}`
   }
   return contentHtml
 }

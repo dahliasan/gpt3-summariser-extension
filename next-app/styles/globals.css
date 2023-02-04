@@ -19,11 +19,11 @@ a {
 }
 
 :root {
-  --black: #0c1618;
-  --white: #fff;
-  --yellow: #faf4d3;
-  --green: #004643;
-  --lightgray: #f4f4f4;
+  --isabelline: #f8f5f2;
+  --black: #222525;
+  --green: #078080;
+  --orange: #f45d48;
+  --white: #fffffe;
   --borderRadius: 5px;
 }
 
@@ -44,7 +44,7 @@ body {
   font-weight: 400;
   line-height: 1.5;
   color: var(--black);
-  background-color: var(--white);
+  background-color: var(--isabelline);
   padding: 1rem;
 }
 
@@ -79,7 +79,8 @@ body {
 } */
 
 button {
-  background: var(--yellow);
+  background: var(--green);
+  color: var(--white);
   border: 1px solid black;
   padding: 0.25rem 1rem;
   text-transform: uppercase;
@@ -92,7 +93,8 @@ button {
 }
 
 button:hover {
-  background: var(--white);
+  background: var(--isabelline);
+  color: var(--black);
 }
 
 a {
@@ -149,7 +151,7 @@ input {
 }
 
 .summary:has(.summary-text:hover) {
-  background: var(--lightgray);
+  background: var(--white);
 }
 
 .summary * {
