@@ -54,7 +54,7 @@ export async function generateCompletionAction(text, info, tab) {
   try {
     // Send mesage with generating text (this will be like a loading indicator)
 
-    sendInjectionMessage({ content: 'generating...' }, tab)
+    sendInjectionMessage({ content: 'generating' }, tab)
 
     const summaryCompletion = await generateFromEveryPrompt(text, APIS.detailed)
 
@@ -343,4 +343,72 @@ export function generateLongText(input) {
 
   // Summarize the paragraphs above in under 512 characters.
   const MAX_SUMMARY_LENGTH = 512
+
+  // Combine chunks into a blob
+
+  // Summarize the blob
+
+  // Return the summary`
+}
+
+// Drag element function
+export function dragElement(elmnt) {
+  var pos1 = 0,
+    pos2 = 0,
+    pos3 = 0,
+    pos4 = 0
+  if ('ontouchstart' in document.documentElement) {
+    var pos1touch = 0,
+      pos2touch = 0,
+      pos3touch = 0,
+      pos4touch = 0
+  }
+  if (document.getElementById(elmnt.id + 'header')) {
+    document.getElementById(elmnt.id + 'header').onmousedown = dragMouseDown
+    document.getElementById(elmnt.id + 'header').ontouchstart = dragMouseDown
+  }
+
+  function dragMouseDown(e) {
+    if (!'ontouchstart' in document.documentElement) {
+      e.preventDefault()
+    }
+    pos3 = e.clientX
+    pos4 = e.clientY
+    if ('ontouchstart' in document.documentElement) {
+      try {
+        pos3touch = e.touches[0].clientX
+        pos4touch = e.touches[0].clientY
+      } catch (error) {}
+    }
+    document.onmouseup = closeDragElement
+    document.onmousemove = elementDrag
+    document.ontouchend = closeDragElement
+    document.ontouchmove = elementDrag
+  }
+
+  function elementDrag(e) {
+    e.preventDefault()
+    if ('ontouchstart' in document.documentElement) {
+      pos1touch = pos3touch - e.touches[0].clientX
+      pos2touch = pos4touch - e.touches[0].clientY
+      pos3touch = e.touches[0].clientX
+      pos4touch = e.touches[0].clientY
+      elmnt.style.top = elmnt.offsetTop - pos2touch + 'px'
+      elmnt.style.left = elmnt.offsetLeft - pos1touch + 'px'
+    } else {
+      pos1 = pos3 - e.clientX
+      pos2 = pos4 - e.clientY
+      pos3 = e.clientX
+      pos4 = e.clientY
+      elmnt.style.top = elmnt.offsetTop - pos2 + 'px'
+      elmnt.style.left = elmnt.offsetLeft - pos1 + 'px'
+    }
+  }
+
+  function closeDragElement() {
+    document.onmouseup = null
+    document.onmousemove = null
+    document.ontouchend = null
+    document.ontouchmove = null
+  }
 }

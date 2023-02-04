@@ -28,7 +28,10 @@
   "web_accessible_resources": [
     {
       "matches": ["<all_urls>"],
-      "resources": ["*/static/*/*"]
+      "resources": ["*/static/*/*", "fonts/*"]
     }
-  ]
+  ],
+  "sandbox": {
+    "pages": ["sandboxed.html"]
+  }
 }

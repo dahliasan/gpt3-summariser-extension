@@ -1,12 +1,7 @@
 console.log('hello from content script in next.js!')
 
 import { Readability } from '@mozilla/readability'
-
-function readable(doc) {
-  const reader = new Readability(doc)
-  const article = reader.parse()
-  return article
-}
+import { dragElement } from '../../lib/utils'
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // If messages contains content to inject into page
@@ -14,6 +9,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const { message } = request
 
     // Call  insert function
+
     const result = insert(message)
 
     // If something went wrong, send a failed status
@@ -34,7 +30,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ text: parsed.textContent })
   }
 })
-
 // Create pop-up window
 function createPopupWindow() {
   // Now, create a pop-up window with the message
@@ -75,6 +70,71 @@ async function insert(message, tabId) {
   const { content, title, url } = message
 
   // Split content by \n
+  let contentHtml = createContentHtml(content, url, title)
+
+  // Find the section on the page to insert our summary div
+  let summaryElement = document.getElementById('summary-content')
+
+  if (!summaryElement) {
+    // If popup element doesn't exist, create one and inject message
+    summaryElement = createPopupWindow()
+    // summaryElement.innerHTML = contentHtml
+
+    // Create the iframe element
+    var iframe = document.createElement('iframe')
+    iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts')
+
+    iframe.style.width = '100%'
+    iframe.style.height = '100%'
+
+    // Set the source of the iframe to your summary.html file
+    iframe.src = chrome.runtime.getURL('inject.html')
+
+    // Append the iframe to the popup
+    summaryElement.appendChild(iframe)
+
+    iframe.addEventListener('load', function () {
+      const content = iframe.contentDocument || iframe.contentWindow.document
+      const body = content.body
+      body.innerHTML = '<p>This is a sample summary</p>'
+    })
+  } else {
+    // If popup element exists, inject new message
+    // summaryElement.innerHTML = contentHtml
+
+    // Create the iframe element
+    var iframe = document.createElement('iframe')
+    iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts')
+
+    iframe.style.width = '100%'
+    iframe.style.height = '100%'
+
+    // Set the source of the iframe to your summary.html file
+    iframe.src = chrome.runtime.getURL('inject.html')
+
+    // Append the iframe to the popup
+    summaryElement.appendChild(iframe)
+
+    iframe.addEventListener('load', function () {
+      const content = iframe.contentDocument || iframe.contentWindow.document
+      const body = content.body
+      body.innerHTML = '<p>This is a sample summary</p>'
+    })
+  }
+
+  if (content === 'generating') {
+    // add class 'loading' to summary element
+    summaryElement.classList.add('loading')
+  } else {
+    // remove class 'loading' from summary element
+    summaryElement.classList.remove('loading')
+  }
+
+  // On success return true
+  return true
+}
+
+function createContentHtml(content, url, title) {
   const splitContent = content.split('\n')
 
   // Format content
@@ -120,81 +180,11 @@ async function insert(message, tabId) {
   if (url && title) {
     contentHtml = `<p style='font-weight: bold;'><a href="${url}">${title}</a></p>${contentHtml}`
   }
-
-  // Find the section on the page to insert our summary div
-  let summaryElement = document.getElementById('summary-content')
-
-  if (!summaryElement) {
-    // If popup element doesn't exist, create one and inject message
-    summaryElement = createPopupWindow()
-    summaryElement.innerHTML = contentHtml
-  } else {
-    // If popup element exists, inject new message
-    summaryElement.innerHTML = contentHtml
-  }
-
-  // On success return true
-  return true
+  return contentHtml
 }
 
-// Drag element function
-function dragElement(elmnt) {
-  var pos1 = 0,
-    pos2 = 0,
-    pos3 = 0,
-    pos4 = 0
-  if ('ontouchstart' in document.documentElement) {
-    var pos1touch = 0,
-      pos2touch = 0,
-      pos3touch = 0,
-      pos4touch = 0
-  }
-  if (document.getElementById(elmnt.id + 'header')) {
-    document.getElementById(elmnt.id + 'header').onmousedown = dragMouseDown
-    document.getElementById(elmnt.id + 'header').ontouchstart = dragMouseDown
-  }
-
-  function dragMouseDown(e) {
-    if (!'ontouchstart' in document.documentElement) {
-      e.preventDefault()
-    }
-    pos3 = e.clientX
-    pos4 = e.clientY
-    if ('ontouchstart' in document.documentElement) {
-      try {
-        pos3touch = e.touches[0].clientX
-        pos4touch = e.touches[0].clientY
-      } catch (error) {}
-    }
-    document.onmouseup = closeDragElement
-    document.onmousemove = elementDrag
-    document.ontouchend = closeDragElement
-    document.ontouchmove = elementDrag
-  }
-
-  function elementDrag(e) {
-    e.preventDefault()
-    if ('ontouchstart' in document.documentElement) {
-      pos1touch = pos3touch - e.touches[0].clientX
-      pos2touch = pos4touch - e.touches[0].clientY
-      pos3touch = e.touches[0].clientX
-      pos4touch = e.touches[0].clientY
-      elmnt.style.top = elmnt.offsetTop - pos2touch + 'px'
-      elmnt.style.left = elmnt.offsetLeft - pos1touch + 'px'
-    } else {
-      pos1 = pos3 - e.clientX
-      pos2 = pos4 - e.clientY
-      pos3 = e.clientX
-      pos4 = e.clientY
-      elmnt.style.top = elmnt.offsetTop - pos2 + 'px'
-      elmnt.style.left = elmnt.offsetLeft - pos1 + 'px'
-    }
-  }
-
-  function closeDragElement() {
-    document.onmouseup = null
-    document.onmousemove = null
-    document.ontouchend = null
-    document.ontouchmove = null
-  }
+function readable(doc) {
+  const reader = new Readability(doc)
+  const article = reader.parse()
+  return article
 }
