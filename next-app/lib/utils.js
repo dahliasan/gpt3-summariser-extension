@@ -5,6 +5,8 @@ const APIS = {
     'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-sSJ6Zi',
   short2:
     'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-copy-YAhgjj',
+  keypoints:
+    'https://www.everyprompt.com/api/v0/calls/personal-17/key-points-ZJakZM',
 }
 
 export async function getCurrentTab() {
@@ -59,105 +61,6 @@ export async function generateFromEveryPrompt(prompt, apiUrl) {
   }
 }
 
-// export async function generateCompletionAction(text, info, tab) {
-//   try {
-//     // start timer
-//     let startTime = Date.now()
-
-//     // Send mesage with generating text (this will be like a loading indicator)
-//     sendInjectionMessage({ content: 'generating' }, tab)
-
-//     const summaryCompletion = await generateFromEveryPrompt(text, APIS.detailed)
-
-//     // Save new summary to local storage
-//     let summaryObject = {
-//       date: Date.now(),
-//       title: tab.title,
-//       url: tab.url,
-//       content: summaryCompletion.text,
-//       timeSaved: readingTimeSaved(text, summaryCompletion.text),
-//       timeTaken: Date.now() - startTime,
-//     }
-
-//     // Send the output when we're all done
-//     sendInjectionMessage(summaryObject, tab)
-
-//     // get embedding of summary
-//     const summaryEmbedding = await getEmbeddings(
-//       `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
-//     )
-
-//     let id = await getNextId()
-
-//     console.log(`this summary's id is: `, id)
-
-//     summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
-
-//     // save summary to local storage
-//     chrome.storage.local.set(
-//       {
-//         [`summary-${id}`]: summaryObject,
-//       },
-//       function () {
-//         console.log('Summary saved to local storage', summaryObject)
-//       }
-//     )
-//   } catch (error) {
-//     console.log('error message received: ', error)
-
-//     if (error.includes('consider using fewer tokens')) {
-//       sendInjectionMessage(
-//         {
-//           content:
-//             "😱 wowza! that's alot of text... gotta bring in the big guns for this one. hang tight!",
-//         },
-//         tab
-//       )
-
-//       let startTime = Date.now()
-
-//       const { blob, summary: summaryCompletion } = await generateLongText(text)
-
-//       // Save new summary to local storage
-//       let summaryObject = {
-//         date: Date.now(),
-//         title: tab.title,
-//         url: tab.url,
-//         content: summaryCompletion.text,
-//         timeSaved: readingTimeSaved(text, summaryCompletion.text),
-//         timeTaken: Date.now() - startTime,
-//         blob: blob,
-//       }
-
-//       // Send the output when we're all done
-//       sendInjectionMessage(summaryObject, tab)
-
-//       // get embedding of summary
-//       const summaryEmbedding = await getEmbeddings(
-//         `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url}`
-//       )
-
-//       let id = await getNextId()
-
-//       console.log(`this summary's id is: `, id)
-
-//       summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
-
-//       // save summary to local storage
-//       chrome.storage.local.set(
-//         {
-//           [`summary-${id}`]: summaryObject,
-//         },
-//         function () {
-//           console.log('Summary saved to local storage', summaryObject)
-//         }
-//       )
-//     } else {
-//       sendInjectionMessage({ content: error }, tab)
-//     }
-//   }
-// }
-
 export async function generateCompletionAction(text, info, tab) {
   let startTime = Date.now()
 
@@ -168,8 +71,13 @@ export async function generateCompletionAction(text, info, tab) {
   let id
   let summaryCompletion
   let metadata
+  let content
 
-  let [summaryData, error] = await generateFromEveryPrompt(text, APIS.detailed)
+  // make two fetchs at the same time
+  let [[summaryData, error], [summaryData2, error2]] = await Promise.all([
+    generateFromEveryPrompt(text, APIS.detailed),
+    generateFromEveryPrompt(text, APIS.keypoints),
+  ])
 
   if (error) {
     console.log('error message received: ', error)
@@ -191,16 +99,29 @@ export async function generateCompletionAction(text, info, tab) {
       sendInjectionMessage({ content: error }, tab)
       return
     }
+  } else if (error2) {
+    console.log('error message received: ', error2)
+    if (error2.message?.includes('consider using fewer tokens')) {
+      console.log('initiate divide and conquer')
+      const blob = splitSummarizeCombine(text)
+      metadata = { ...metadata, blob }
+      summaryData2 = await getKeyPoints(blob)
+      console.log('summaryData2', summaryData2)
+    }
   }
 
   summaryCompletion = summaryData.completions.pop()
+
+  content = `${summaryCompletion.text}\n\n${
+    summaryData2.completions.pop().text
+  }`
 
   summaryObject = {
     date: Date.now(),
     title: tab.title,
     url: tab.url,
-    content: summaryCompletion.text,
-    timeSaved: readingTimeSaved(text, summaryCompletion.text),
+    content: content,
+    timeSaved: readingTimeSaved(text, content),
     timeTaken: Date.now() - startTime,
   }
 
@@ -211,7 +132,7 @@ export async function generateCompletionAction(text, info, tab) {
   sendInjectionMessage(summaryObject, tab)
 
   summaryEmbedding = await getEmbeddings(
-    `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
+    `${content} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
   )
 
   // Save summary object to local storage
@@ -225,10 +146,33 @@ export async function generateCompletionAction(text, info, tab) {
 }
 
 export async function generateLongText(input) {
+  const blob = await splitSummarizeCombine(input)
+
+  sendInjectionMessage({
+    content: '🫡 ok, not long now... one summary coming right up!',
+  })
+
+  // if less than 1000 words then use short2 api
+  if (blob.split(' ').length <= 500) {
+    const finalSummaryData = await getSimpleSummary(blob)
+    return [finalSummaryData, { blob }]
+  } else {
+    const finalSummaryData = await getDetailedSummary(blob)
+    return [finalSummaryData, { blob }]
+  }
+}
+
+async function splitSummarizeCombine(input) {
   const CHUNK_SIZE = 4000
 
   const splitIntoChunks = (input, chunkSize) => {
     let paragraphs = input.split('\n')
+
+    // if no new lines, split by sentences
+    if (paragraphs.length === 1) {
+      paragraphs = input.split('.')
+    }
+
     let chunks = []
     let currentChunk = []
     paragraphs.forEach((paragraph) => {
@@ -256,6 +200,7 @@ export async function generateLongText(input) {
 
           if (error) {
             if (error.message.includes('consider using fewer tokens')) {
+              console.log('chunks still too big!')
               const SMALLER_CHUNK_SIZE = CHUNK_SIZE / 2
 
               const chunks = splitIntoChunks(chunk, SMALLER_CHUNK_SIZE)
@@ -279,41 +224,10 @@ export async function generateLongText(input) {
     return summaries.join('\n')
   }
 
-  const getSummaryOfBlob = async (blob) => {
-    const [data, error] = await generateFromEveryPrompt(blob, APIS.detailed)
-
-    if (error) {
-      throw error
-    }
-
-    return data
-  }
-
-  const formatBlob = async (blob) => {
-    const [data, error] = await generateFromEveryPrompt(blob, APIS.short2)
-
-    if (error) {
-      throw error
-    }
-
-    return data
-  }
-
   const chunks = splitIntoChunks(input, CHUNK_SIZE)
   const summaries = await summarizeChunks(chunks)
   const blob = await combineSummariesIntoBlob(summaries)
-  sendInjectionMessage({
-    content: '🫡 ok, not long now... one summary coming right up!',
-  })
-
-  // if less than 1000 words then use short2 api
-  if (blob.split(' ').length < 1000) {
-    const finalSummaryData = await formatBlob(blob)
-    return [finalSummaryData, { blob }]
-  } else {
-    const finalSummaryData = await getSummaryOfBlob(blob)
-    return [finalSummaryData, { blob }]
-  }
+  return blob
 }
 
 export async function getNextId() {
@@ -623,4 +537,34 @@ export function readingTimeSaved(string1, string2) {
   let timeSaved = wordsSaved / 250
 
   return timeSaved
+}
+
+export async function getDetailedSummary(blob) {
+  const [data, error] = await generateFromEveryPrompt(blob, APIS.detailed)
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function getSimpleSummary(blob) {
+  const [data, error] = await generateFromEveryPrompt(blob, APIS.short2)
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function getKeyPoints(blob) {
+  const [data, error] = await generateFromEveryPrompt(blob, APIS.keyPoints)
+
+  if (error) {
+    throw error
+  }
+
+  return data
 }

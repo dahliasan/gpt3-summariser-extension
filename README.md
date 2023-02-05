@@ -10,7 +10,7 @@ It is powered by OpenAI's GPT3.
 
 Free to use!
 
-🫡 If you find this extension helpful please consider donating $1. It'll go a long way to keeping this free for as long as possible!
+🫡 If you find this extension helpful please consider buying me a cuppa! It'll go a long way to keeping this free for as long as possible!
 https://www.buymeacoffee.com/dahliasan
 
 ### How to install
