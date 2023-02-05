@@ -7,7 +7,7 @@
 
 .summary__popup {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-family: 'Sora' !important;
   --isabelline: #f8f5f2;
   --black: #222525;
@@ -44,7 +44,7 @@
 #summary-content {
   min-width: 250px;
   width: fit-content;
-  max-width: 50ch;
+  max-width: 60ch;
   max-height: 90vh;
   /* Overflow declarations */
   height: fit-content;
