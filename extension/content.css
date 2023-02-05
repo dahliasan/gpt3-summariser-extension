@@ -2,6 +2,7 @@
   line-height: 1.8;
   margin: 0;
   padding: 0;
+  background: var(--isabelline);
 }
 
 .summary__popup {

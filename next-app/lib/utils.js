@@ -59,105 +59,6 @@ export async function generateFromEveryPrompt(prompt, apiUrl) {
   }
 }
 
-// export async function generateCompletionAction(text, info, tab) {
-//   try {
-//     // start timer
-//     let startTime = Date.now()
-
-//     // Send mesage with generating text (this will be like a loading indicator)
-//     sendInjectionMessage({ content: 'generating' }, tab)
-
-//     const summaryCompletion = await generateFromEveryPrompt(text, APIS.detailed)
-
-//     // Save new summary to local storage
-//     let summaryObject = {
-//       date: Date.now(),
-//       title: tab.title,
-//       url: tab.url,
-//       content: summaryCompletion.text,
-//       timeSaved: readingTimeSaved(text, summaryCompletion.text),
-//       timeTaken: Date.now() - startTime,
-//     }
-
-//     // Send the output when we're all done
-//     sendInjectionMessage(summaryObject, tab)
-
-//     // get embedding of summary
-//     const summaryEmbedding = await getEmbeddings(
-//       `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
-//     )
-
-//     let id = await getNextId()
-
-//     console.log(`this summary's id is: `, id)
-
-//     summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
-
-//     // save summary to local storage
-//     chrome.storage.local.set(
-//       {
-//         [`summary-${id}`]: summaryObject,
-//       },
-//       function () {
-//         console.log('Summary saved to local storage', summaryObject)
-//       }
-//     )
-//   } catch (error) {
-//     console.log('error message received: ', error)
-
-//     if (error.includes('consider using fewer tokens')) {
-//       sendInjectionMessage(
-//         {
-//           content:
-//             "😱 wowza! that's alot of text... gotta bring in the big guns for this one. hang tight!",
-//         },
-//         tab
-//       )
-
-//       let startTime = Date.now()
-
-//       const { blob, summary: summaryCompletion } = await generateLongText(text)
-
-//       // Save new summary to local storage
-//       let summaryObject = {
-//         date: Date.now(),
-//         title: tab.title,
-//         url: tab.url,
-//         content: summaryCompletion.text,
-//         timeSaved: readingTimeSaved(text, summaryCompletion.text),
-//         timeTaken: Date.now() - startTime,
-//         blob: blob,
-//       }
-
-//       // Send the output when we're all done
-//       sendInjectionMessage(summaryObject, tab)
-
-//       // get embedding of summary
-//       const summaryEmbedding = await getEmbeddings(
-//         `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url}`
-//       )
-
-//       let id = await getNextId()
-
-//       console.log(`this summary's id is: `, id)
-
-//       summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
-
-//       // save summary to local storage
-//       chrome.storage.local.set(
-//         {
-//           [`summary-${id}`]: summaryObject,
-//         },
-//         function () {
-//           console.log('Summary saved to local storage', summaryObject)
-//         }
-//       )
-//     } else {
-//       sendInjectionMessage({ content: error }, tab)
-//     }
-//   }
-// }
-
 export async function generateCompletionAction(text, info, tab) {
   let startTime = Date.now()
 
@@ -306,8 +207,8 @@ export async function generateLongText(input) {
     content: '🫡 ok, not long now... one summary coming right up!',
   })
 
-  // if less than 1000 words then use short2 api
-  if (blob.split(' ').length < 1000) {
+  // if less than 500 words then use short2 api
+  if (blob.split(' ').length < 500) {
     const finalSummaryData = await formatBlob(blob)
     return [finalSummaryData, { blob }]
   } else {
