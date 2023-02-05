@@ -1,8 +1,10 @@
 const APIS = {
   detailed:
     'https://www.everyprompt.com/api/v0/calls/personal-17/detailed-summary-and-advice-pZMlOa',
-  short: '',
-  longer: '',
+  short:
+    'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-sSJ6Zi',
+  short2:
+    'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-copy-YAhgjj',
 }
 
 export async function getCurrentTab() {
@@ -11,98 +13,306 @@ export async function getCurrentTab() {
   return tab
 }
 
-export async function sendInjectionMessage(message, tab) {
-  const targetTab = tab || getCurrentTab()
+export async function sendInjectionMessage(message, tab = undefined) {
+  if (!tab) {
+    tab = await getCurrentTab()
+  }
 
-  console.log('sending injection message to:', targetTab)
+  console.log('sending injection message to:', tab)
 
-  chrome.tabs.sendMessage(
-    targetTab.id,
-    { type: 'inject', message },
-    (response) => {
-      if (response.status === 'failed') {
-        console.log('injection failed.')
-      }
+  chrome.tabs.sendMessage(tab.id, { type: 'inject', message }, (response) => {
+    if (response.status === 'failed') {
+      console.log('injection failed.')
     }
-  )
+  })
 }
 
 export async function generateFromEveryPrompt(prompt, apiUrl) {
-  const userId = await getUniqueUserId()
-  const completionResponse = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer wVcIxPHJadXQotPGPgjR5',
-    },
-    body: JSON.stringify({
-      variables: {
-        text: prompt,
-      },
-      user: userId,
-    }),
-  })
-  const completion = await completionResponse.json()
-  console.log('API replied:', completion)
-  if (completion.object === 'error') {
-    throw completion.message
-  }
-  return completion.choices.pop()
-}
-
-export async function generateCompletionAction(text, info, tab) {
   try {
-    // Send mesage with generating text (this will be like a loading indicator)
+    const userId = await getUniqueUserId()
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer wVcIxPHJadXQotPGPgjR5',
+      },
+      body: JSON.stringify({
+        variables: {
+          text: preprocessText(prompt),
+        },
+        user: userId,
+      }),
+    })
 
-    sendInjectionMessage({ content: 'generating...' }, tab)
+    const data = await response.json()
+    console.log('API replied:', data)
+    console.log(response.status)
 
-    const summaryCompletion = await generateFromEveryPrompt(text, APIS.detailed)
-
-    // Save new summary to local storage
-    let summaryObject = {
-      date: Date.now(),
-      title: tab.title,
-      url: tab.url,
-      content: summaryCompletion.text,
+    if (response.status !== 200) {
+      return [null, data]
     }
 
-    // Send the output when we're all done
-    sendInjectionMessage(summaryObject, tab)
-
-    // get embedding of summary
-    const summaryEmbedding = await getEmbeddings(
-      `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url}`
-    )
-
-    let id = await getNextId()
-
-    console.log(`this summary's id is: `, id)
-
-    summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
-
-    // save summary to local storage
-    chrome.storage.local.set(
-      {
-        [`summary-${id}`]: summaryObject,
-      },
-      function () {
-        console.log('Summary saved to local storage', summaryObject)
-      }
-    )
+    return [data, null]
   } catch (error) {
+    console.error('Error:', error)
+    return [null, error]
+  }
+}
+
+// export async function generateCompletionAction(text, info, tab) {
+//   try {
+//     // start timer
+//     let startTime = Date.now()
+
+//     // Send mesage with generating text (this will be like a loading indicator)
+//     sendInjectionMessage({ content: 'generating' }, tab)
+
+//     const summaryCompletion = await generateFromEveryPrompt(text, APIS.detailed)
+
+//     // Save new summary to local storage
+//     let summaryObject = {
+//       date: Date.now(),
+//       title: tab.title,
+//       url: tab.url,
+//       content: summaryCompletion.text,
+//       timeSaved: readingTimeSaved(text, summaryCompletion.text),
+//       timeTaken: Date.now() - startTime,
+//     }
+
+//     // Send the output when we're all done
+//     sendInjectionMessage(summaryObject, tab)
+
+//     // get embedding of summary
+//     const summaryEmbedding = await getEmbeddings(
+//       `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
+//     )
+
+//     let id = await getNextId()
+
+//     console.log(`this summary's id is: `, id)
+
+//     summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
+
+//     // save summary to local storage
+//     chrome.storage.local.set(
+//       {
+//         [`summary-${id}`]: summaryObject,
+//       },
+//       function () {
+//         console.log('Summary saved to local storage', summaryObject)
+//       }
+//     )
+//   } catch (error) {
+//     console.log('error message received: ', error)
+
+//     if (error.includes('consider using fewer tokens')) {
+//       sendInjectionMessage(
+//         {
+//           content:
+//             "😱 wowza! that's alot of text... gotta bring in the big guns for this one. hang tight!",
+//         },
+//         tab
+//       )
+
+//       let startTime = Date.now()
+
+//       const { blob, summary: summaryCompletion } = await generateLongText(text)
+
+//       // Save new summary to local storage
+//       let summaryObject = {
+//         date: Date.now(),
+//         title: tab.title,
+//         url: tab.url,
+//         content: summaryCompletion.text,
+//         timeSaved: readingTimeSaved(text, summaryCompletion.text),
+//         timeTaken: Date.now() - startTime,
+//         blob: blob,
+//       }
+
+//       // Send the output when we're all done
+//       sendInjectionMessage(summaryObject, tab)
+
+//       // get embedding of summary
+//       const summaryEmbedding = await getEmbeddings(
+//         `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url}`
+//       )
+
+//       let id = await getNextId()
+
+//       console.log(`this summary's id is: `, id)
+
+//       summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
+
+//       // save summary to local storage
+//       chrome.storage.local.set(
+//         {
+//           [`summary-${id}`]: summaryObject,
+//         },
+//         function () {
+//           console.log('Summary saved to local storage', summaryObject)
+//         }
+//       )
+//     } else {
+//       sendInjectionMessage({ content: error }, tab)
+//     }
+//   }
+// }
+
+export async function generateCompletionAction(text, info, tab) {
+  let startTime = Date.now()
+
+  sendInjectionMessage({ content: 'generating' }, tab)
+
+  let summaryObject
+  let summaryEmbedding
+  let id
+  let summaryCompletion
+  let metadata
+
+  let [summaryData, error] = await generateFromEveryPrompt(text, APIS.detailed)
+
+  if (error) {
     console.log('error message received: ', error)
 
-    if (error.includes('consider using fewer tokens')) {
+    if (error.message?.includes('consider using fewer tokens')) {
       sendInjectionMessage(
         {
           content:
-            '😢 your text is too long, try selecting a smaller section of text.',
+            "😱 wowza! that's alot of text... gotta bring in the big guns for this one. hang tight!",
         },
         tab
       )
+
+      const longTextSummaryResponse = await generateLongText(text)
+
+      summaryData = longTextSummaryResponse[0]
+      metadata = longTextSummaryResponse[1]
     } else {
       sendInjectionMessage({ content: error }, tab)
+      return
     }
+  }
+
+  summaryCompletion = summaryData.completions.pop()
+
+  summaryObject = {
+    date: Date.now(),
+    title: tab.title,
+    url: tab.url,
+    content: summaryCompletion.text,
+    timeSaved: readingTimeSaved(text, summaryCompletion.text),
+    timeTaken: Date.now() - startTime,
+  }
+
+  if (metadata) {
+    summaryObject = { ...summaryObject, ...metadata }
+  }
+
+  sendInjectionMessage(summaryObject, tab)
+
+  summaryEmbedding = await getEmbeddings(
+    `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
+  )
+
+  // Save summary object to local storage
+  id = await getNextId()
+
+  summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
+
+  chrome.storage.local.set({ [`summary-${id}`]: summaryObject }, function () {
+    console.log('Summary saved to local storage', summaryObject)
+  })
+}
+
+export async function generateLongText(input) {
+  const CHUNK_SIZE = 4000
+
+  const splitIntoChunks = (input, chunkSize) => {
+    let paragraphs = input.split('\n')
+    let chunks = []
+    let currentChunk = []
+    paragraphs.forEach((paragraph) => {
+      if (
+        currentChunk.reduce((sum, str) => sum + str.length, 0) +
+          paragraph.length >
+        chunkSize
+      ) {
+        chunks.push(currentChunk.join('\n\n'))
+        currentChunk = []
+      }
+      currentChunk.push(paragraph)
+    })
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk.join('\n\n'))
+    }
+    return chunks
+  }
+
+  const summarizeChunks = async (chunks) => {
+    try {
+      return Promise.all(
+        chunks.map(async (chunk) => {
+          const [data, error] = await generateFromEveryPrompt(chunk, APIS.short)
+
+          if (error) {
+            if (error.message.includes('consider using fewer tokens')) {
+              const SMALLER_CHUNK_SIZE = CHUNK_SIZE / 2
+
+              const chunks = splitIntoChunks(chunk, SMALLER_CHUNK_SIZE)
+              const summaries = await summarizeChunks(chunks)
+              const blob = await combineSummariesIntoBlob(summaries)
+              return blob // return blob instead of summary
+            } else {
+              throw error
+            }
+          }
+
+          return data.completions.pop().text.trim()
+        })
+      )
+    } catch (error) {
+      console.log('error received in catch block from summarizeChunks', error)
+    }
+  }
+
+  const combineSummariesIntoBlob = async (summaries) => {
+    return summaries.join('\n')
+  }
+
+  const getSummaryOfBlob = async (blob) => {
+    const [data, error] = await generateFromEveryPrompt(blob, APIS.detailed)
+
+    if (error) {
+      throw error
+    }
+
+    return data
+  }
+
+  const formatBlob = async (blob) => {
+    const [data, error] = await generateFromEveryPrompt(blob, APIS.short2)
+
+    if (error) {
+      throw error
+    }
+
+    return data
+  }
+
+  const chunks = splitIntoChunks(input, CHUNK_SIZE)
+  const summaries = await summarizeChunks(chunks)
+  const blob = await combineSummariesIntoBlob(summaries)
+  sendInjectionMessage({
+    content: '🫡 ok, not long now... one summary coming right up!',
+  })
+
+  // if less than 1000 words then use short2 api
+  if (blob.split(' ').length < 1000) {
+    const finalSummaryData = await formatBlob(blob)
+    return [finalSummaryData, { blob }]
+  } else {
+    const finalSummaryData = await getSummaryOfBlob(blob)
+    return [finalSummaryData, { blob }]
   }
 }
 
@@ -316,31 +526,101 @@ export function getUniqueUserId() {
   })
 }
 
-export function generateLongText(input) {
-  const splitChunks = (input) => {
-    // Split the content at the paragram level in chunks smaller than 4k characters.
-    const CHUNK_SIZE = 4000
-    let paragraphs = input.split('\n\n')
-    let splits = []
-    let current = []
-    paragraphs.forEach((p) => {
-      if (
-        current.reduce((tot, str) => tot + str.length, 0) + p.length >
-        CHUNK_SIZE
-      ) {
-        splits.push(current.join('\n\n'))
-        current = []
-      }
-      current.push(p)
-    })
-    if (current.length > 0) {
-      splits.push(current.join('\n\n'))
-    }
-    return splits
+export function preprocessText(input) {
+  // Lowercase text
+  const lowercaseText = input.toLowerCase()
+
+  // Remove punctuation except full stops and preserve contraction words
+  // const filteredText = lowercaseText.replace(/([^\w\s.'])/gi, '')
+  const filteredText = lowercaseText
+
+  // Remove stopwords
+  const stopwords = new Set(['is', 'a', 'and', 'with', 'the'])
+  const processedWords = filteredText
+    .split(' ')
+    .filter((word) => word.length > 0 && !stopwords.has(word))
+    .join(' ')
+    .trim()
+
+  // Split into lines and filter out any lines that are only whitespace
+  const lines = processedWords
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+
+  // Join filtered lines back together with a single \n character
+  const filteredLines = lines.join('\n')
+
+  console.log('PROCESSED WORDS:\n', filteredLines)
+  return filteredLines
+}
+
+// Drag element function
+export function dragElement(elmnt) {
+  var pos1 = 0,
+    pos2 = 0,
+    pos3 = 0,
+    pos4 = 0
+  if ('ontouchstart' in document.documentElement) {
+    var pos1touch = 0,
+      pos2touch = 0,
+      pos3touch = 0,
+      pos4touch = 0
+  }
+  if (document.getElementById(elmnt.id + 'header')) {
+    document.getElementById(elmnt.id + 'header').onmousedown = dragMouseDown
+    document.getElementById(elmnt.id + 'header').ontouchstart = dragMouseDown
   }
 
-  const chunks = splitChunks(input)
+  function dragMouseDown(e) {
+    if (!'ontouchstart' in document.documentElement) {
+      e.preventDefault()
+    }
+    pos3 = e.clientX
+    pos4 = e.clientY
+    if ('ontouchstart' in document.documentElement) {
+      try {
+        pos3touch = e.touches[0].clientX
+        pos4touch = e.touches[0].clientY
+      } catch (error) {}
+    }
+    document.onmouseup = closeDragElement
+    document.onmousemove = elementDrag
+    document.ontouchend = closeDragElement
+    document.ontouchmove = elementDrag
+  }
 
-  // Summarize the paragraphs above in under 512 characters.
-  const MAX_SUMMARY_LENGTH = 512
+  function elementDrag(e) {
+    e.preventDefault()
+    if ('ontouchstart' in document.documentElement) {
+      pos1touch = pos3touch - e.touches[0].clientX
+      pos2touch = pos4touch - e.touches[0].clientY
+      pos3touch = e.touches[0].clientX
+      pos4touch = e.touches[0].clientY
+      elmnt.style.top = elmnt.offsetTop - pos2touch + 'px'
+      elmnt.style.left = elmnt.offsetLeft - pos1touch + 'px'
+    } else {
+      pos1 = pos3 - e.clientX
+      pos2 = pos4 - e.clientY
+      pos3 = e.clientX
+      pos4 = e.clientY
+      elmnt.style.top = elmnt.offsetTop - pos2 + 'px'
+      elmnt.style.left = elmnt.offsetLeft - pos1 + 'px'
+    }
+  }
+
+  function closeDragElement() {
+    document.onmouseup = null
+    document.onmousemove = null
+    document.ontouchend = null
+    document.ontouchmove = null
+  }
+}
+
+export function readingTimeSaved(string1, string2) {
+  let words1 = string1.split(' ').length
+  let words2 = string2.split(' ').length
+  let wordsSaved = words1 - words2
+  let timeSaved = wordsSaved / 250
+
+  return timeSaved
 }

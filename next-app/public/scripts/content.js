@@ -1,12 +1,33 @@
-console.log('hello from content script in next.js!')
-
+console.log('summarizooor content script is running')
 import { Readability } from '@mozilla/readability'
+import { createCopyBtn } from '../../lib/summaries'
+import { dragElement } from '../../lib/utils'
 
-function readable(doc) {
-  const reader = new Readability(doc)
-  const article = reader.parse()
-  return article
+// Load fonts
+const font1Url = chrome.runtime.getURL('fonts/Sora-Regular.woff2')
+const font2Url = chrome.runtime.getURL('fonts/Sora-Bold.woff2')
+
+const fontStyleSheet = document.createElement('style')
+
+fontStyleSheet.textContent = `
+@font-face {
+  font-family: 'Sora';
+  src: url('${font1Url}') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
+
+@font-face {
+  font-family: 'Sora';
+  src: url('${font2Url}') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+`
+
+document.head.appendChild(fontStyleSheet)
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // If messages contains content to inject into page
@@ -14,6 +35,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const { message } = request
 
     // Call  insert function
+
     const result = insert(message)
 
     // If something went wrong, send a failed status
@@ -28,19 +50,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'get_webpage') {
     let cloneDoc = document.cloneNode(true)
     let parsed = readable(cloneDoc)
-
     console.log('main content extracted:', parsed)
 
-    sendResponse({ text: parsed.textContent })
+    // Check if there are embedded tweets
+    let html = document.body.innerHTML
+    let node = document.body
+    const pattern = /https:\/\/twitter\.com\/[^/]+\/status\/\d+\//g
+    const tweets = html.match(pattern)
+
+    if (tweets) {
+      console.log('tweets detected')
+      if (document.querySelector('.ii.gt')) {
+        node = document.querySelector('.ii.gt').innerText
+      }
+      sendResponse({ text: node.innerText })
+    } else {
+      sendResponse({ text: parsed.textContent })
+    }
   }
 })
-
 // Create pop-up window
 function createPopupWindow() {
   // Now, create a pop-up window with the message
   let popup = document.createElement('div')
   popup.setAttribute('id', 'window1')
-  popup.className = 'window summary-wrapper'
+  popup.className = 'window summary__popup'
   document.body.appendChild(popup)
 
   // Add top bar wrapper for buttons
@@ -67,40 +101,75 @@ function createPopupWindow() {
   // Make pop-up window draggable
   dragElement(popup)
 
-  return document.getElementById('summary-content')
+  return summaryContent
 }
 
 // Insert content into page
 async function insert(message, tabId) {
-  const { content, title, url } = message
-
   // Split content by \n
+  let contentHtml = createContentHtml(message)
+
+  // Find the section on the page to insert our summary div
+  let summaryElement = document.getElementById('summary-content')
+
+  if (!summaryElement) {
+    // If popup element doesn't exist, create one and inject message
+    summaryElement = createPopupWindow()
+    summaryElement.innerHTML = contentHtml
+  } else {
+    // If popup element exists, inject new message
+    summaryElement.innerHTML = contentHtml
+  }
+
+  if (message.content === 'generating') {
+    // add class 'loading' to summary element
+    summaryElement.classList.add('loading')
+  } else {
+    // remove class 'loading' from summary element
+    summaryElement.classList.remove('loading')
+  }
+
+  if (message.url) {
+    // Add a copy button to top bar
+    if (document.querySelector('.copy-button')) {
+      document.querySelector('.copy-button').remove()
+    }
+
+    const copyButton = createCopyBtn(message.content)
+    document
+      .querySelector('.top-bar')
+      .insertBefore(copyButton, document.querySelector('.close-btn'))
+  }
+
+  // On success return true
+  return true
+}
+
+function createContentHtml({ content, url, title, timeSaved }) {
   const splitContent = content.split('\n')
 
   // Format content
   let contentHtml = splitContent
     .map((content) => {
-      if (content === '') {
-        return ''
+      let li
+      switch (true) {
+        case content === '':
+          return ''
+        case content.startsWith('-'):
+          li = document.createElement('li')
+          li.innerText = content.replace('-', '')
+          li.innerText = li.innerText.trim()
+          return li.outerHTML
+        case content.startsWith('•'):
+          li = document.createElement('li')
+          li.innerText = content.replace('•', '')
+          li.innerText = li.innerText.trim()
+          return li.outerHTML
+        default:
+          const p = document.createElement('p')
+          p.innerText = content
+          return p.outerHTML
       }
-
-      if (content.startsWith('-')) {
-        const li = document.createElement('li')
-        li.innerText = content.replace('-', '')
-        li.innerText = li.innerText.trim()
-        return li.outerHTML
-      }
-
-      if (content.startsWith('•')) {
-        const li = document.createElement('li')
-        li.innerText = content.replace('•', '')
-        li.innerText = li.innerText.trim()
-        return li.outerHTML
-      }
-
-      const p = document.createElement('p')
-      p.innerText = content
-      return p.outerHTML
     })
     .join('')
 
@@ -118,83 +187,15 @@ async function insert(message, tabId) {
 
   // Add title and url to contentHtml
   if (url && title) {
-    contentHtml = `<p style='font-weight: bold;'><a href="${url}">${title}</a></p>${contentHtml}`
+    contentHtml = `<p style='font-weight: bold;'><a href="${url}">${title}</a></p><p class='time-saved'>Reading time saved: ${Math.round(
+      timeSaved
+    )} mins</p>${contentHtml}`
   }
-
-  // Find the section on the page to insert our summary div
-  let summaryElement = document.getElementById('summary-content')
-
-  if (!summaryElement) {
-    // If popup element doesn't exist, create one and inject message
-    summaryElement = createPopupWindow()
-    summaryElement.innerHTML = contentHtml
-  } else {
-    // If popup element exists, inject new message
-    summaryElement.innerHTML = contentHtml
-  }
-
-  // On success return true
-  return true
+  return contentHtml
 }
 
-// Drag element function
-function dragElement(elmnt) {
-  var pos1 = 0,
-    pos2 = 0,
-    pos3 = 0,
-    pos4 = 0
-  if ('ontouchstart' in document.documentElement) {
-    var pos1touch = 0,
-      pos2touch = 0,
-      pos3touch = 0,
-      pos4touch = 0
-  }
-  if (document.getElementById(elmnt.id + 'header')) {
-    document.getElementById(elmnt.id + 'header').onmousedown = dragMouseDown
-    document.getElementById(elmnt.id + 'header').ontouchstart = dragMouseDown
-  }
-
-  function dragMouseDown(e) {
-    if (!'ontouchstart' in document.documentElement) {
-      e.preventDefault()
-    }
-    pos3 = e.clientX
-    pos4 = e.clientY
-    if ('ontouchstart' in document.documentElement) {
-      try {
-        pos3touch = e.touches[0].clientX
-        pos4touch = e.touches[0].clientY
-      } catch (error) {}
-    }
-    document.onmouseup = closeDragElement
-    document.onmousemove = elementDrag
-    document.ontouchend = closeDragElement
-    document.ontouchmove = elementDrag
-  }
-
-  function elementDrag(e) {
-    e.preventDefault()
-    if ('ontouchstart' in document.documentElement) {
-      pos1touch = pos3touch - e.touches[0].clientX
-      pos2touch = pos4touch - e.touches[0].clientY
-      pos3touch = e.touches[0].clientX
-      pos4touch = e.touches[0].clientY
-      elmnt.style.top = elmnt.offsetTop - pos2touch + 'px'
-      elmnt.style.left = elmnt.offsetLeft - pos1touch + 'px'
-    } else {
-      pos1 = pos3 - e.clientX
-      pos2 = pos4 - e.clientY
-      pos3 = e.clientX
-      pos4 = e.clientY
-      elmnt.style.top = elmnt.offsetTop - pos2 + 'px'
-      elmnt.style.left = elmnt.offsetLeft - pos1 + 'px'
-    }
-  }
-
-  function closeDragElement() {
-    document.onmouseup = null
-    document.onmousemove = null
-    document.ontouchend = null
-    document.ontouchmove = null
-  }
+function readable(doc) {
+  const reader = new Readability(doc)
+  const article = reader.parse()
+  return article
 }

@@ -1,7 +1,7 @@
 {
   "name": "summarizooor",
   "description": "Summarize any webpage with a single click",
-  "version": "0.0.0.3",
+  "version": "0.0.0.4",
   "manifest_version": 3,
   "icons": {
     "48": "assets/48.png",
@@ -28,7 +28,7 @@
   "web_accessible_resources": [
     {
       "matches": ["<all_urls>"],
-      "resources": ["*/static/*/*"]
+      "resources": ["*/static/*/*", "fonts/*"]
     }
   ]
 }

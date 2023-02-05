@@ -1,83 +1,53 @@
-@font-face {
-  font-family: Sora;
-  src: url('chrome-extension://__MSG_@@extension_id__/fonts/Sora-Regular.woff2')
-    format(‘woff2’);
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: Sora;
-  src: url('chrome-extension://__MSG_@@extension_id__/fonts/Sora-Bold.woff2')
-    format(‘woff2’);
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
-
-ul {
-  padding-left: 1rem;
-}
-
-.summary-wrapper,
-.summary-wrapper * {
+.summary__popup * {
+  line-height: 1.8;
   margin: 0;
-  font-size: 18px;
-  font-family: 'Sora', sans-serif !important;
-  --black: #0c1618;
-  --white: #fff;
-  --yellow: #faf4d3;
-  --green: #004643;
-  --lightgray: #f4f4f4;
+  padding: 0;
 }
 
-.summary-wrapper a {
-  color: var(--green) !important;
-  /* text-decoration: none; */
-}
+.summary__popup {
+  margin: 0;
+  font-size: 16px;
+  font-family: 'Sora' !important;
+  --isabelline: #f8f5f2;
+  --black: #222525;
+  --green: #078080;
+  --orange: #f45d48;
 
-::-webkit-scrollbar {
-  width: 0.5rem;
-  height: 12px;
-}
-
-#summary-content::-webkit-scrollbar-track {
-  background-color: transparent;
-  border-radius: 9999px;
-}
-
-#summary-content::-webkit-scrollbar-thumb {
-  background-color: var(--black);
-  border: none;
-  border-radius: 9999px;
-}
-
-.summary-wrapper {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1000;
   background-color: rgb(254, 254, 254);
-  background-color: var(--yellow);
+  background-color: var(--isabelline);
   color: var(--black);
   display: grid;
-  gap: 10px;
   place-content: center;
   padding: 0.5rem 0.75rem;
   border-radius: 10px;
   border: 2px solid black;
-  width: max-content;
   box-shadow: 0px 3px 15px rgba(0, 0, 0, 0.2);
+  width: fit-content;
+}
+
+.summary__popup ul {
+  list-style-position: outside;
+  list-style-type: disc;
+  padding-left: 1.125rem;
+}
+
+.summary__popup a {
+  color: var(--green) !important;
 }
 
 #summary-content {
-  width: 100%;
-  max-width: 700px;
+  min-width: 250px;
+  width: fit-content;
+  max-width: 50ch;
+  max-height: 90vh;
   /* Overflow declarations */
-  max-height: 40vh;
-  overflow: hidden;
+  height: fit-content;
+  overflow-y: scroll;
   will-change: transform;
   overflow: auto;
   outline: none;
@@ -88,35 +58,71 @@ ul {
   gap: 15px;
 }
 
-#summary-content * {
-  line-height: 1.7 !important;
-}
-
 #summary-content h1,
 #summary-content h2,
 #summary-content h3 {
   font-weight: bold;
 }
 
+.time-saved {
+  font-size: 12px;
+}
+
 .top-bar {
   width: 100%;
   display: flex;
-  gap: 1rem;
-  justify-content: space-between;
+  align-items: baseline;
   cursor: move;
+  height: 20px;
+  gap: 12px;
+}
+
+.top-bar > *:first-child {
+  margin-left: auto;
+}
+
+.copy-button {
+  aspect-ratio: 1/1;
+  border: none;
+  height: 15px;
+  display: grid;
+  place-items: center;
+}
+
+.copy-button svg {
+  height: 100%;
 }
 
 .close-btn {
-  height: 0.5rem;
+  height: 12px;
   aspect-ratio: 1/1;
   background-repeat: no-repeat;
   background-size: contain;
   background-position: center;
-}
-
-.close-btn {
-  margin-left: auto;
   cursor: pointer;
   fill: black;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' xml:space='preserve' viewBox='0 0 460.775 460.775'%3E%3Cpath d='M285.08 230.397 456.218 59.27c6.076-6.077 6.076-15.911 0-21.986L423.511 4.565a15.55 15.55 0 0 0-21.985 0l-171.138 171.14L59.25 4.565a15.551 15.551 0 0 0-21.985 0L4.558 37.284c-6.077 6.075-6.077 15.909 0 21.986l171.138 171.128L4.575 401.505c-6.074 6.077-6.074 15.911 0 21.986l32.709 32.719a15.555 15.555 0 0 0 21.986 0l171.117-171.12 171.118 171.12a15.551 15.551 0 0 0 21.985 0l32.709-32.719c6.074-6.075 6.074-15.909 0-21.986L285.08 230.397z'/%3E%3C/svg%3E");
+}
+
+/* Loading animation */
+.loading > *:after {
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: bottom;
+  -webkit-animation: ellipsis steps(4, end) 900ms infinite;
+  animation: ellipsis steps(4, end) 900ms infinite;
+  content: '\2026'; /* ascii code for the ellipsis character */
+  width: 0px;
+}
+
+@keyframes ellipsis {
+  to {
+    width: 1.25em;
+  }
+}
+
+@-webkit-keyframes ellipsis {
+  to {
+    width: 1.25em;
+  }
 }

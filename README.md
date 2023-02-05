@@ -10,6 +10,9 @@ It is powered by OpenAI's GPT3.
 
 Free to use!
 
+🫡 If you find this extension helpful please consider donating $1. It'll go a long way to keeping this free for as long as possible!
+https://www.buymeacoffee.com/dahliasan
+
 ### How to install
 
 🥳 Download on the chrome webstore [here](https://chrome.google.com/webstore/detail/tldr-summary-generator/khkckpdkkddnlhfebcglejikmgmimado)!
@@ -40,10 +43,14 @@ You can search your summaries semantically! This means you can ask a question in
 ### Todos / Roadmap
 
 - different types of summaries
-- handle longer summaries
 - 1-click share summary to social media
 - new tab to view all summaries on a bigger screen
 - explore other people's summaries and save them to your own database
+- regenerate final summary (for longer text)
+- ✅ also read text from embedded tweets (common style in newsletters)
+- ✅ handle longer summaries
+- ✅ copy to clipboard in the popup
+- ✅ semantic search for summaries
 
 ### Resources
 

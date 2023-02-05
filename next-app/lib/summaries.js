@@ -40,8 +40,9 @@ export function fetchSummaries() {
         // Create a new div to display the summary
         const summaryDiv = createSummaryComponent(items[key], key)
 
-        //Add the summary div to the popup
-        document.getElementById('summaries').appendChild(summaryDiv)
+        // Add the summary div to the top child of popup
+        const summariesDiv = document.getElementById('summaries')
+        summariesDiv.insertBefore(summaryDiv, summariesDiv.firstChild)
       }
     }
   })
@@ -53,39 +54,25 @@ export function createSummaryComponent(summaryObj, key) {
 
   // Create a new div to display the summary text
   const summaryTextDiv = document.createElement('div')
-  const summaryText = summaryObj['content']
+  const summaryText = summaryObj['title']
   summaryTextDiv.innerHTML = summaryText
   summaryTextDiv.className = 'summary-text'
 
   // Create a new button to copy the summary
-  const copyButton = document.createElement('button')
-  copyButton.innerHTML = clipboardIcon
-  copyButton.className = 'copy-button'
-  copyButton.onclick = function () {
-    //Copy the summary to the clipboard
-    navigator.clipboard.writeText(summaryText)
-    copyButton.innerHTML = clipboardSuccessIcon
-
-    setTimeout(() => {
-      copyButton.innerHTML = clipboardIcon
-    }, 1000)
-  }
+  const copyButton = createCopyBtn(summaryText)
 
   // Create a new button to delete the summary
-  const deleteButton = document.createElement('button')
-  deleteButton.innerHTML = deleteIcon
-  deleteButton.className = 'delete-button'
-  deleteButton.onclick = function () {
-    //Delete the summary from local storage
-    chrome.storage.local.remove(key)
-    // Remove the summary div from the popup
-    summaryDiv.remove()
-  }
+  const deleteButton = createDeleteBtn(key, summaryDiv)
+
+  // Create a new div to hold the copy and delete buttons
+  const buttonsWrapper = document.createElement('div')
+  buttonsWrapper.className = 'buttons-wrapper'
+  buttonsWrapper.appendChild(copyButton)
+  buttonsWrapper.appendChild(deleteButton)
 
   //Add the copy and delete buttons to the summary div
   summaryDiv.appendChild(summaryTextDiv)
-  summaryDiv.appendChild(copyButton)
-  summaryDiv.appendChild(deleteButton)
+  summaryDiv.appendChild(buttonsWrapper)
 
   // Add event listener to the summary text div
   summaryTextDiv.addEventListener('click', (e) => {
@@ -103,6 +90,35 @@ export function createSummaryComponent(summaryObj, key) {
     })
   })
   return summaryDiv
+}
+
+export function createDeleteBtn(key, summaryDiv) {
+  const deleteButton = document.createElement('button')
+  deleteButton.innerHTML = deleteIcon
+  deleteButton.className = 'delete-button'
+  deleteButton.onclick = function () {
+    //Delete the summary from local storage
+    chrome.storage.local.remove(key)
+    // Remove the summary div from the popup
+    summaryDiv.remove()
+  }
+  return deleteButton
+}
+
+export function createCopyBtn(text) {
+  const copyButton = document.createElement('button')
+  copyButton.innerHTML = clipboardIcon
+  copyButton.className = 'copy-button'
+  copyButton.onclick = function () {
+    //Copy the text to the clipboard
+    navigator.clipboard.writeText(text)
+    copyButton.innerHTML = clipboardSuccessIcon
+
+    setTimeout(() => {
+      copyButton.innerHTML = clipboardIcon
+    }, 1000)
+  }
+  return copyButton
 }
 
 export function listenForMessages() {
