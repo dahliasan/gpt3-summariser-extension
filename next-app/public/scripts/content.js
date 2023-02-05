@@ -50,10 +50,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'get_webpage') {
     let cloneDoc = document.cloneNode(true)
     let parsed = readable(cloneDoc)
-
     console.log('main content extracted:', parsed)
 
-    sendResponse({ text: parsed.textContent })
+    // Check if there are embedded tweets
+    let html = document.body.innerHTML
+    let node = document.body
+    const pattern = /https:\/\/twitter\.com\/[^/]+\/status\/\d+\//g
+    const tweets = html.match(pattern)
+
+    if (tweets) {
+      console.log('tweets detected')
+      if (document.querySelector('.ii.gt')) {
+        node = document.querySelector('.ii.gt').innerText
+      }
+      sendResponse({ text: node.innerText })
+    } else {
+      sendResponse({ text: parsed.textContent })
+    }
   }
 })
 // Create pop-up window

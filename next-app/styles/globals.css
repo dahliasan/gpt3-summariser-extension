@@ -59,8 +59,8 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--lightgray);
-  border: none;
+  background-color: var(--white);
+  border: 2px solid var(--isabelline);
   border-radius: 9999px;
 }
 
@@ -148,6 +148,7 @@ input {
   align-items: center;
   padding: 5px;
   border-radius: var(--borderRadius);
+  justify-content: space-between;
 }
 
 .summary:has(.summary-text:hover) {
@@ -156,6 +157,11 @@ input {
 
 .summary * {
   font-size: 12px;
+}
+
+.summary .buttons-wrapper {
+  display: flex;
+  gap: 5px;
 }
 
 .summary button {

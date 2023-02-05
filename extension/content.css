@@ -37,12 +37,13 @@
 }
 
 .summary__popup a {
-  color: var(--green);
+  color: var(--green) !important;
 }
 
 #summary-content {
-  width: 50ch;
-  max-width: 70vw;
+  min-width: 250px;
+  width: fit-content;
+  max-width: 50ch;
   max-height: 90vh;
   /* Overflow declarations */
   height: fit-content;

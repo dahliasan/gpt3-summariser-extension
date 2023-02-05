@@ -3,7 +3,8 @@ const APIS = {
     'https://www.everyprompt.com/api/v0/calls/personal-17/detailed-summary-and-advice-pZMlOa',
   short:
     'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-sSJ6Zi',
-  longer: '',
+  short2:
+    'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-copy-YAhgjj',
 }
 
 export async function getCurrentTab() {
@@ -12,60 +13,50 @@ export async function getCurrentTab() {
   return tab
 }
 
-export async function sendInjectionMessage(message, tab) {
-  const targetTab = tab || (await getCurrentTab())
+export async function sendInjectionMessage(message, tab = undefined) {
+  if (!tab) {
+    tab = await getCurrentTab()
+  }
 
-  console.log('sending injection message to:', targetTab)
+  console.log('sending injection message to:', tab)
 
-  chrome.tabs.sendMessage(
-    targetTab.id ? targetTab.id : targetTab,
-    { type: 'inject', message },
-    (response) => {
-      if (response.status === 'failed') {
-        console.log('injection failed.')
-      }
+  chrome.tabs.sendMessage(tab.id, { type: 'inject', message }, (response) => {
+    if (response.status === 'failed') {
+      console.log('injection failed.')
     }
-  )
+  })
 }
 
 export async function generateFromEveryPrompt(prompt, apiUrl) {
-  let response
-  const userId = await getUniqueUserId()
-
-  response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer wVcIxPHJadXQotPGPgjR5',
-    },
-    body: JSON.stringify({
-      variables: {
-        text: preprocessText(prompt),
+  try {
+    const userId = await getUniqueUserId()
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer wVcIxPHJadXQotPGPgjR5',
       },
-      user: userId,
-    }),
-  })
+      body: JSON.stringify({
+        variables: {
+          text: preprocessText(prompt),
+        },
+        user: userId,
+      }),
+    })
 
-  const completion = await response.json()
+    const data = await response.json()
+    console.log('API replied:', data)
+    console.log(response.status)
 
-  console.log('API replied:', completion)
-
-  if (completion.object === 'error') {
-    if (completion.message.includes('consider using fewer tokens')) {
-      // send message to content script
-      sendInjectionMessage({
-        content:
-          "😱 wowza! that's alot of text... gotta bring in the big guns for this one. hang tight!",
-      })
-
-      // generate summary for long text
-      return await generateLongText(prompt)
-    } else {
-      throw completion.message
+    if (response.status !== 200) {
+      return [null, data]
     }
-  }
 
-  return [completion.completions.pop(), null]
+    return [data, null]
+  } catch (error) {
+    console.error('Error:', error)
+    return [null, error]
+  }
 }
 
 // export async function generateCompletionAction(text, info, tab) {
@@ -172,19 +163,37 @@ export async function generateCompletionAction(text, info, tab) {
 
   sendInjectionMessage({ content: 'generating' }, tab)
 
-  let response
   let summaryObject
   let summaryEmbedding
   let id
+  let summaryCompletion
+  let metadata
 
-  try {
-    response = await generateFromEveryPrompt(text, APIS.detailed)
-  } catch (error) {
-    sendInjectionMessage({ content: error }, tab)
-    return
+  let [summaryData, error] = await generateFromEveryPrompt(text, APIS.detailed)
+
+  if (error) {
+    console.log('error message received: ', error)
+
+    if (error.message?.includes('consider using fewer tokens')) {
+      sendInjectionMessage(
+        {
+          content:
+            "😱 wowza! that's alot of text... gotta bring in the big guns for this one. hang tight!",
+        },
+        tab
+      )
+
+      const longTextSummaryResponse = await generateLongText(text)
+
+      summaryData = longTextSummaryResponse[0]
+      metadata = longTextSummaryResponse[1]
+    } else {
+      sendInjectionMessage({ content: error }, tab)
+      return
+    }
   }
 
-  const [summaryCompletion, metadata] = response
+  summaryCompletion = summaryData.completions.pop()
 
   summaryObject = {
     date: Date.now(),
@@ -195,9 +204,10 @@ export async function generateCompletionAction(text, info, tab) {
     timeTaken: Date.now() - startTime,
   }
 
-  if (metadata.blob) {
-    summaryObject.blob = metadata.blob
+  if (metadata) {
+    summaryObject = { ...summaryObject, ...metadata }
   }
+
   sendInjectionMessage(summaryObject, tab)
 
   summaryEmbedding = await getEmbeddings(
@@ -212,6 +222,98 @@ export async function generateCompletionAction(text, info, tab) {
   chrome.storage.local.set({ [`summary-${id}`]: summaryObject }, function () {
     console.log('Summary saved to local storage', summaryObject)
   })
+}
+
+export async function generateLongText(input) {
+  const CHUNK_SIZE = 4000
+
+  const splitIntoChunks = (input, chunkSize) => {
+    let paragraphs = input.split('\n')
+    let chunks = []
+    let currentChunk = []
+    paragraphs.forEach((paragraph) => {
+      if (
+        currentChunk.reduce((sum, str) => sum + str.length, 0) +
+          paragraph.length >
+        chunkSize
+      ) {
+        chunks.push(currentChunk.join('\n\n'))
+        currentChunk = []
+      }
+      currentChunk.push(paragraph)
+    })
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk.join('\n\n'))
+    }
+    return chunks
+  }
+
+  const summarizeChunks = async (chunks) => {
+    try {
+      return Promise.all(
+        chunks.map(async (chunk) => {
+          const [data, error] = await generateFromEveryPrompt(chunk, APIS.short)
+
+          if (error) {
+            if (error.message.includes('consider using fewer tokens')) {
+              const SMALLER_CHUNK_SIZE = CHUNK_SIZE / 2
+
+              const chunks = splitIntoChunks(chunk, SMALLER_CHUNK_SIZE)
+              const summaries = await summarizeChunks(chunks)
+              const blob = await combineSummariesIntoBlob(summaries)
+              return blob // return blob instead of summary
+            } else {
+              throw error
+            }
+          }
+
+          return data.completions.pop().text.trim()
+        })
+      )
+    } catch (error) {
+      console.log('error received in catch block from summarizeChunks', error)
+    }
+  }
+
+  const combineSummariesIntoBlob = async (summaries) => {
+    return summaries.join('\n')
+  }
+
+  const getSummaryOfBlob = async (blob) => {
+    const [data, error] = await generateFromEveryPrompt(blob, APIS.detailed)
+
+    if (error) {
+      throw error
+    }
+
+    return data
+  }
+
+  const formatBlob = async (blob) => {
+    const [data, error] = await generateFromEveryPrompt(blob, APIS.short2)
+
+    if (error) {
+      throw error
+    }
+
+    return data
+  }
+
+  const chunks = splitIntoChunks(input, CHUNK_SIZE)
+  const summaries = await summarizeChunks(chunks)
+  const blob = await combineSummariesIntoBlob(summaries)
+  sendInjectionMessage({
+    content: '🫡 ok, not long now... one summary coming right up!',
+  })
+
+  // if less than 1000 words then use short2 api
+  if (blob.split(' ').length < 1000) {
+    const finalSummaryData = await formatBlob(blob)
+    return [finalSummaryData, { blob }]
+  } else {
+    const finalSummaryData = await getSummaryOfBlob(blob)
+    return [finalSummaryData, { blob }]
+  }
 }
 
 export async function getNextId() {
@@ -424,86 +526,32 @@ export function getUniqueUserId() {
   })
 }
 
-export async function generateLongText(input) {
-  const splitChunks = (input) => {
-    // Split the content at the paragram level in chunks smaller than 4k characters.
-    // For curie model max token length is 2048
-    const CHUNK_SIZE = 2000
-    let paragraphs = input.split('\n\n')
-    let splits = []
-    let current = []
-    paragraphs.forEach((p) => {
-      if (
-        current.reduce((tot, str) => tot + str.length, 0) + p.length >
-        CHUNK_SIZE
-      ) {
-        splits.push(current.join('\n\n'))
-        current = []
-      }
-      current.push(p)
-    })
-    if (current.length > 0) {
-      splits.push(current.join('\n\n'))
-    }
-    return splits
-  }
-
-  const chunks = splitChunks(input)
-
-  // multiple async fetch requests to summarize the chunks
-  const summarizeChunks = async (chunks) => {
-    const summaries = await Promise.all(
-      chunks.map(async (chunk) => {
-        const response = await generateFromEveryPrompt(chunk, APIS.short)
-        return response.text.trim()
-      })
-    )
-    return summaries
-  }
-
-  // Combine summarize chunks into a blob
-  const summarizeBlob = async (chunks) => {
-    const summaries = await summarizeChunks(chunks)
-    const blob = summaries.join('\n')
-    return blob
-  }
-
-  // Summarize the blob
-  const summarizeBlobSummary = async (blob) => {
-    const response = await generateFromEveryPrompt(blob, APIS.detailed)
-    return response
-  }
-
-  // Return the summary`
-  const summarize = async () => {
-    const blob = await summarizeBlob(chunks)
-
-    sendInjectionMessage({
-      content: 'ok, not long now... one summary coming right up!',
-    })
-
-    const summary = await summarizeBlobSummary(blob)
-    return [summary, { blob }]
-  }
-
-  return summarize()
-}
-
 export function preprocessText(input) {
-  const stopwords = ['is', 'a', 'and', 'with', 'the']
-
   // Lowercase text
   const lowercaseText = input.toLowerCase()
 
-  // Remove stopwords and punctuation
-  const filteredWords = lowercaseText
-    .replace(/[^\w\s]/gi, '')
-    .split(' ')
-    .filter((word) => !stopwords.includes(word))
+  // Remove punctuation except full stops and preserve contraction words
+  // const filteredText = lowercaseText.replace(/([^\w\s.'])/gi, '')
+  const filteredText = lowercaseText
 
-  const processedWords = filteredWords.join(' ').trim()
-  console.log('processed words: ', processedWords)
-  return processedWords
+  // Remove stopwords
+  const stopwords = new Set(['is', 'a', 'and', 'with', 'the'])
+  const processedWords = filteredText
+    .split(' ')
+    .filter((word) => word.length > 0 && !stopwords.has(word))
+    .join(' ')
+    .trim()
+
+  // Split into lines and filter out any lines that are only whitespace
+  const lines = processedWords
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+
+  // Join filtered lines back together with a single \n character
+  const filteredLines = lines.join('\n')
+
+  console.log('PROCESSED WORDS:\n', filteredLines)
+  return filteredLines
 }
 
 // Drag element function
