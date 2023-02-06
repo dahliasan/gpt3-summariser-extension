@@ -10,6 +10,7 @@ const APIS = {
 export async function getCurrentTab() {
   let queryOptions = { active: true, lastFocusedWindow: true }
   let [tab] = await chrome.tabs.query(queryOptions)
+  console.log('current tab requested:', tab)
   return tab
 }
 
@@ -20,11 +21,15 @@ export async function sendInjectionMessage(message, tab = undefined) {
 
   console.log('sending injection message to:', tab)
 
-  chrome.tabs.sendMessage(tab.id, { type: 'inject', message }, (response) => {
-    if (response.status === 'failed') {
-      console.log('injection failed.')
+  chrome.tabs.sendMessage(
+    tab.id ? tab.id : tab,
+    { type: 'inject', message },
+    (response) => {
+      if (response.status === 'failed') {
+        console.log('injection failed.')
+      }
     }
-  })
+  )
 }
 
 export async function generateFromEveryPrompt(prompt, apiUrl) {
@@ -60,69 +65,89 @@ export async function generateFromEveryPrompt(prompt, apiUrl) {
 }
 
 export async function generateCompletionAction(text, info, tab) {
-  let startTime = Date.now()
+  try {
+    let startTime = Date.now()
 
-  sendInjectionMessage({ content: 'generating' }, tab)
+    sendInjectionMessage({ content: 'generating' }, tab)
 
-  let summaryObject
-  let summaryEmbedding
-  let id
-  let summaryCompletion
-  let metadata
+    let summaryObject
+    let summaryEmbedding
+    let id
+    let summaryCompletion
+    let metadata
 
-  let [summaryData, error] = await generateFromEveryPrompt(text, APIS.detailed)
+    let [summaryData, error] = await generateFromEveryPrompt(
+      text,
+      APIS.detailed
+    )
 
-  if (error) {
-    console.log('error message received: ', error)
+    if (error) {
+      console.log('error message received: ', error)
 
-    if (error.message?.includes('consider using fewer tokens')) {
-      sendInjectionMessage(
-        {
-          content:
-            "😱 wowza! that's alot of text... gotta bring in the big guns for this one. hang tight!",
-        },
-        tab
-      )
+      if (error.message?.includes('consider using fewer tokens')) {
+        sendInjectionMessage(
+          {
+            content:
+              "😱 wowza! that's alot of text... gotta bring in the big guns for this one. hang tight!",
+          },
+          tab
+        )
 
-      const longTextSummaryResponse = await generateLongText(text)
+        const [longTextSummaryResponse, error2] = await generateLongText(text)
 
-      summaryData = longTextSummaryResponse[0]
-      metadata = longTextSummaryResponse[1]
-    } else {
-      sendInjectionMessage({ content: error }, tab)
-      return
+        if (error2) {
+          sendInjectionMessage(
+            {
+              content: `something went wrong... but we salvaged what we could:
+
+              ${longTextSummaryResponse}`,
+            },
+            tab
+          )
+
+          summaryData = longTextSummaryResponse
+        } else {
+          summaryData = longTextSummaryResponse[0]
+          metadata = longTextSummaryResponse[1]
+        }
+      } else {
+        sendInjectionMessage({ content: error }, tab)
+        return
+      }
     }
+
+    summaryCompletion = summaryData.completions.pop()
+
+    summaryObject = {
+      date: Date.now(),
+      title: tab.title,
+      url: tab.url,
+      content: summaryCompletion.text,
+      timeSaved: readingTimeSaved(text, summaryCompletion.text),
+      timeTaken: Date.now() - startTime,
+    }
+
+    if (metadata) {
+      summaryObject = { ...summaryObject, ...metadata }
+    }
+
+    sendInjectionMessage(summaryObject, tab)
+
+    summaryEmbedding = await getEmbeddings(
+      `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
+    )
+
+    // Save summary object to local storage
+    id = await getNextId()
+
+    summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
+
+    chrome.storage.local.set({ [`summary-${id}`]: summaryObject }, function () {
+      console.log('Summary saved to local storage', summaryObject)
+    })
+  } catch (error) {
+    sendInjectionMessage(error, tab)
   }
-
-  summaryCompletion = summaryData.completions.pop()
-
-  summaryObject = {
-    date: Date.now(),
-    title: tab.title,
-    url: tab.url,
-    content: summaryCompletion.text,
-    timeSaved: readingTimeSaved(text, summaryCompletion.text),
-    timeTaken: Date.now() - startTime,
-  }
-
-  if (metadata) {
-    summaryObject = { ...summaryObject, ...metadata }
-  }
-
-  sendInjectionMessage(summaryObject, tab)
-
-  summaryEmbedding = await getEmbeddings(
-    `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
-  )
-
-  // Save summary object to local storage
-  id = await getNextId()
-
-  summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
-
-  chrome.storage.local.set({ [`summary-${id}`]: summaryObject }, function () {
-    console.log('Summary saved to local storage', summaryObject)
-  })
 }
 
 export async function generateLongText(input) {
@@ -130,6 +155,17 @@ export async function generateLongText(input) {
 
   const splitIntoChunks = (input, chunkSize) => {
     let paragraphs = input.split('\n')
+
+    // if no paragraphs, split by sentences
+    if (paragraphs.length === 1) {
+      paragraphs = input.split('.')
+    }
+
+    // if no sentences split by words
+    if (paragraphs.length === 1) {
+      paragraphs = input.split(' ')
+    }
+
     let chunks = []
     let currentChunk = []
     paragraphs.forEach((paragraph) => {
@@ -184,20 +220,20 @@ export async function generateLongText(input) {
     const [data, error] = await generateFromEveryPrompt(blob, APIS.detailed)
 
     if (error) {
-      throw error
+      return [blob, error]
     }
 
-    return data
+    return [data, null]
   }
 
   const formatBlob = async (blob) => {
     const [data, error] = await generateFromEveryPrompt(blob, APIS.short2)
 
     if (error) {
-      throw error
+      return [blob, error]
     }
 
-    return data
+    return [data, null]
   }
 
   const chunks = splitIntoChunks(input, CHUNK_SIZE)

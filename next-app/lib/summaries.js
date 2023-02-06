@@ -30,20 +30,19 @@ export function fetchSummaries() {
   console.log('fetching summaries...')
   //Retrieve all summaries from local storage
   chrome.storage.local.get(null, (items) => {
-    //Iterate through all the summaries
-    for (let key in items) {
-      // if key includes summary
+    // sort summaries by date from most recent to least recent
+    const summaries = Object.keys(items)
+      .filter((key) => key.includes('summary') && !key.includes('summaryIndex'))
+      .sort((a, b) => {
+        return items[b].date - items[a].date
+      })
 
-      if (key.includes('summary') && !key.includes('summaryIndex')) {
-        console.log(items[key])
-
-        // Create a new div to display the summary
-        const summaryDiv = createSummaryComponent(items[key], key)
-
-        // Add the summary div to the top child of popup
-        const summariesDiv = document.getElementById('summaries')
-        summariesDiv.insertBefore(summaryDiv, summariesDiv.firstChild)
-      }
+    // iterate through all the summaries and display them
+    for (let key of summaries) {
+      const summaryDiv = createSummaryComponent(items[key], key)
+      const summariesDiv = document.getElementById('summaries')
+      // add earlier summaries to the bottom
+      summariesDiv.appendChild(summaryDiv)
     }
   })
 }
