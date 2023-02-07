@@ -93,26 +93,11 @@ export async function generateCompletionAction(text, info, tab) {
           tab
         )
 
-        const [longTextSummaryResponse, error2] = await generateLongText(text)
-
-        if (error2) {
-          sendInjectionMessage(
-            {
-              content: `something went wrong... but we salvaged what we could:
-
-              ${longTextSummaryResponse}`,
-            },
-            tab
-          )
-
-          summaryData = longTextSummaryResponse
-        } else {
-          summaryData = longTextSummaryResponse[0]
-          metadata = longTextSummaryResponse[1]
-        }
+        const longTextSummaryResponse = await generateLongText(text)
+        summaryData = longTextSummaryResponse[0]
+        metadata = longTextSummaryResponse[1]
       } else {
-        sendInjectionMessage({ content: error }, tab)
-        return
+        throw error
       }
     }
 
@@ -146,7 +131,8 @@ export async function generateCompletionAction(text, info, tab) {
       console.log('Summary saved to local storage', summaryObject)
     })
   } catch (error) {
-    sendInjectionMessage(error, tab)
+    console.log(error)
+    sendInjectionMessage({ content: error.message }, tab)
   }
 }
 
@@ -220,20 +206,20 @@ export async function generateLongText(input) {
     const [data, error] = await generateFromEveryPrompt(blob, APIS.detailed)
 
     if (error) {
-      return [blob, error]
+      throw error
     }
 
-    return [data, null]
+    return data
   }
 
   const formatBlob = async (blob) => {
     const [data, error] = await generateFromEveryPrompt(blob, APIS.short2)
 
     if (error) {
-      return [blob, error]
+      throw error
     }
 
-    return [data, null]
+    return data
   }
 
   const chunks = splitIntoChunks(input, CHUNK_SIZE)
@@ -243,13 +229,17 @@ export async function generateLongText(input) {
     content: '🫡 ok, not long now... one summary coming right up!',
   })
 
-  // if less than 500 words then use short2 api
-  if (blob.split(' ').length < 500) {
-    const finalSummaryData = await formatBlob(blob)
-    return [finalSummaryData, { blob }]
-  } else {
-    const finalSummaryData = await getSummaryOfBlob(blob)
-    return [finalSummaryData, { blob }]
+  try {
+    // if less than 500 words then use short2 api
+    if (blob.split(' ').length < 500) {
+      const finalSummaryData = await formatBlob(blob)
+      return [finalSummaryData, { blob }]
+    } else {
+      const finalSummaryData = await getSummaryOfBlob(blob)
+      return [finalSummaryData, { blob }]
+    }
+  } catch (error) {
+    throw error
   }
 }
 
