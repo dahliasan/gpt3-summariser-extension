@@ -19,7 +19,7 @@ export async function sendInjectionMessage(message, tab = undefined) {
     tab = await getCurrentTab()
   }
 
-  console.log('sending injection message to:', tab)
+  console.log('sending injection message to:', message, tab)
 
   chrome.tabs.sendMessage(
     tab.id ? tab.id : tab,
@@ -75,6 +75,7 @@ export async function generateCompletionAction(text, info, tab) {
     let id
     let summaryCompletion
     let metadata
+    let content
 
     let [summaryData, error] = await generateFromEveryPrompt(
       text,
@@ -93,22 +94,23 @@ export async function generateCompletionAction(text, info, tab) {
           tab
         )
 
-        const [longTextSummaryResponse, error2] = await generateLongText(text)
+        const [longTextSummaryResponse, error] = await generateLongText(text)
 
-        if (error2) {
+        if (error) {
+          console.log(
+            'error message received from generate long text: ',
+            error,
+            'the response',
+            longTextSummaryResponse
+          )
           sendInjectionMessage(
             {
               content: `something went wrong... but we salvaged what we could:
 
-              ${longTextSummaryResponse}`,
+              ${longTextSummaryResponse[0]}`,
             },
             tab
           )
-
-          summaryData = longTextSummaryResponse
-        } else {
-          summaryData = longTextSummaryResponse[0]
-          metadata = longTextSummaryResponse[1]
         }
       } else {
         sendInjectionMessage({ content: error }, tab)
@@ -116,14 +118,19 @@ export async function generateCompletionAction(text, info, tab) {
       }
     }
 
-    summaryCompletion = summaryData.completions.pop()
+    summaryData = longTextSummaryResponse[0]
+    metadata = longTextSummaryResponse[1]
+
+    summaryCompletion = summaryData.completions?.pop() || undefined
+
+    content = summaryCompletion ? summaryCompletion.text : summaryData
 
     summaryObject = {
       date: Date.now(),
       title: tab.title,
       url: tab.url,
-      content: summaryCompletion.text,
-      timeSaved: readingTimeSaved(text, summaryCompletion.text),
+      content: content,
+      timeSaved: readingTimeSaved(text, content),
       timeTaken: Date.now() - startTime,
     }
 
@@ -134,10 +141,11 @@ export async function generateCompletionAction(text, info, tab) {
     sendInjectionMessage(summaryObject, tab)
 
     summaryEmbedding = await getEmbeddings(
-      `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
+      `${content} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
     )
 
     // Save summary object to local storage
+    console.log('saving summary to local storage...')
     id = await getNextId()
 
     summaryObject = { ...summaryObject, id: id, embedding: summaryEmbedding }
@@ -245,11 +253,22 @@ export async function generateLongText(input) {
 
   // if less than 500 words then use short2 api
   if (blob.split(' ').length < 500) {
-    const finalSummaryData = await formatBlob(blob)
-    return [finalSummaryData, { blob }]
+    console.log('using short2 api for final summary')
+    const [response, error] = await formatBlob(blob)
+
+    if (error) {
+      return [[response, { blob }], error]
+    }
+
+    return [[response, { blob }], null]
   } else {
-    const finalSummaryData = await getSummaryOfBlob(blob)
-    return [finalSummaryData, { blob }]
+    console.log('using detailed api for final summary')
+    const [response, error] = await getSummaryOfBlob(blob)
+    if (error) {
+      return [[response, { blob }], error]
+    }
+
+    return [[response, { blob }], null]
   }
 }
 
