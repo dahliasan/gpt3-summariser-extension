@@ -59,7 +59,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--white);
+  background-color: var(--green);
   border: 2px solid var(--isabelline);
   border-radius: 9999px;
 }
@@ -143,12 +143,12 @@ input {
 }
 
 .summary {
-  display: flex;
   gap: 10px;
   align-items: center;
   padding: 5px;
   border-radius: var(--borderRadius);
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
 }
 
 .summary:has(.summary-text:hover) {

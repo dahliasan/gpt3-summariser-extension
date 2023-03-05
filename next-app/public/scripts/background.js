@@ -63,3 +63,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 chrome.runtime.onStartup.addListener(() => {
   checkSummariesFormat()
 })
+
+// on uninstall
+chrome.runtime.setUninstallURL('https://forms.gle/a7gvUaSBdi8gfyUKA')

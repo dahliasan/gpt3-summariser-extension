@@ -5,6 +5,7 @@ const APIS = {
     'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-sSJ6Zi',
   short2:
     'https://www.everyprompt.com/api/v0/calls/personal-17/short-summary-copy-YAhgjj',
+  detailedV2: 'https://summarizooor-server.vercel.app/api/summary-edge',
 }
 
 export async function getCurrentTab() {
@@ -64,6 +65,34 @@ export async function generateFromEveryPrompt(prompt, apiUrl) {
   }
 }
 
+export async function generateSummary(textInput, apiUrl) {
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: preprocessText(textInput),
+      }),
+    })
+
+    const data = await response.json()
+
+    console.log('API replied:', data)
+    console.log(response.status)
+
+    if (data.error) {
+      return [null, data.error]
+    }
+
+    return [data, null]
+  } catch (error) {
+    console.error('Error:', error)
+    return [null, error]
+  }
+}
+
 export async function generateCompletionAction(text, info, tab) {
   try {
     let startTime = Date.now()
@@ -76,15 +105,12 @@ export async function generateCompletionAction(text, info, tab) {
     let summaryCompletion
     let metadata
 
-    let [summaryData, error] = await generateFromEveryPrompt(
-      text,
-      APIS.detailed
-    )
+    let [response, error] = await generateSummary(text, APIS.detailedV2)
 
     if (error) {
-      console.log('error message received: ', error)
+      console.log('API replied with an error:', error)
 
-      if (error.message?.includes('consider using fewer tokens')) {
+      if (error.code === 'context_length_exceeded') {
         sendInjectionMessage(
           {
             content:
@@ -94,21 +120,21 @@ export async function generateCompletionAction(text, info, tab) {
         )
 
         const longTextSummaryResponse = await generateLongText(text)
-        summaryData = longTextSummaryResponse[0]
+        response = longTextSummaryResponse[0]
         metadata = longTextSummaryResponse[1]
       } else {
         throw error
       }
     }
 
-    summaryCompletion = summaryData.completions.pop()
+    summaryCompletion = response.choices[0].message
 
     summaryObject = {
       date: Date.now(),
       title: tab.title,
       url: tab.url,
-      content: summaryCompletion.text,
-      timeSaved: readingTimeSaved(text, summaryCompletion.text),
+      content: summaryCompletion.content,
+      timeSaved: readingTimeSaved(text, summaryCompletion.content),
       timeTaken: Date.now() - startTime,
     }
 
@@ -118,8 +144,8 @@ export async function generateCompletionAction(text, info, tab) {
 
     sendInjectionMessage(summaryObject, tab)
 
-    summaryEmbedding = await getEmbeddings(
-      `${summaryCompletion.text} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
+    summaryEmbedding = await generateEmbeddings(
+      `${summaryCompletion.content} \n\n ${summaryObject.title} \n\n ${summaryObject.url} \n\n date: ${summaryObject.date}`
     )
 
     // Save summary object to local storage
@@ -173,6 +199,8 @@ export async function generateLongText(input) {
 
   const summarizeChunks = async (chunks) => {
     try {
+      // generate summaries for each chunk
+
       return Promise.all(
         chunks.map(async (chunk) => {
           const [data, error] = await generateFromEveryPrompt(chunk, APIS.short)
@@ -203,17 +231,7 @@ export async function generateLongText(input) {
   }
 
   const getSummaryOfBlob = async (blob) => {
-    const [data, error] = await generateFromEveryPrompt(blob, APIS.detailed)
-
-    if (error) {
-      throw error
-    }
-
-    return data
-  }
-
-  const formatBlob = async (blob) => {
-    const [data, error] = await generateFromEveryPrompt(blob, APIS.short2)
+    const [data, error] = await generateSummary(blob, APIS.detailedV2)
 
     if (error) {
       throw error
@@ -230,14 +248,8 @@ export async function generateLongText(input) {
   })
 
   try {
-    // if less than 500 words then use short2 api
-    if (blob.split(' ').length < 500) {
-      const finalSummaryData = await formatBlob(blob)
-      return [finalSummaryData, { blob }]
-    } else {
-      const finalSummaryData = await getSummaryOfBlob(blob)
-      return [finalSummaryData, { blob }]
-    }
+    const finalSummaryData = await getSummaryOfBlob(blob)
+    return [finalSummaryData, { blob }]
   } catch (error) {
     throw error
   }
@@ -255,7 +267,7 @@ export async function getNextId() {
   return id
 }
 
-export async function getEmbeddings(input) {
+export async function generateEmbeddings(input) {
   const url = 'https://summarizooor-server.vercel.app/api/embeddings'
 
   // Call embeddings endpoint
@@ -265,7 +277,7 @@ export async function getEmbeddings(input) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      input: input,
+      input,
     }),
   })
 
@@ -313,7 +325,7 @@ export async function searchSummaries(query) {
 
     if (!searchInputEmbedding) {
       console.log('query does not exist - fetching embeddings...')
-      searchInputEmbedding = await getEmbeddings(query)
+      searchInputEmbedding = await generateEmbeddings(query)
     }
 
     let searchQueryObject = {
@@ -412,7 +424,7 @@ export function checkSummariesFormat() {
           const newSummary = {
             ...summary,
             id: id,
-            embedding: getEmbeddings(
+            embedding: generateEmbeddings(
               `${summary.content} \n\n ${summary.title} \n\n ${summary.url} `
             ),
           }

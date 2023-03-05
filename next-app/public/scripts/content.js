@@ -124,6 +124,8 @@ async function insert(message, tabId) {
   if (message.content === 'generating') {
     // add class 'loading' to summary element
     summaryElement.classList.add('loading')
+    summaryElement.innerHTML =
+      '<div class="loading-text">generating</div></div><div class="lds-ellipsis"><div></div><div></div><div></div><div></div></div>'
   } else {
     // remove class 'loading' from summary element
     summaryElement.classList.remove('loading')
