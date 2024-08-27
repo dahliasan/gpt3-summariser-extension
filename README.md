@@ -1,5 +1,7 @@
 # summarizooor chrome extension
 
+https://www.youtube.com/watch?v=rJdoFarwlfQ
+
 ### Welcome 👋
 
 This is my project for [buildspace's nights and weekend's season 2](https://buildspace.so/nights-and-weekends) cohort.
